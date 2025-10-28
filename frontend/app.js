@@ -175,7 +175,7 @@ const resp = await fetch(`${API_BASE}/estimate`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
-    "X-Api-Key": "dev-demo-key-123"   // ← must match .env exactly
+
   },
   body: JSON.stringify(payload)
 });
