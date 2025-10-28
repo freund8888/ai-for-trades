@@ -1,0 +1,67 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HVAC Estimator</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header>
+    <h1>HVAC Estimator</h1>
+    <p class="tag">AI-assisted preliminary quote</p>
+  </header>
+
+  <main>
+<form id="estForm">
+  <label>Customer Name
+    <input type="text" id="customer_name" placeholder="Jane Contractor" />
+  </label>
+
+  <label>Address
+    <input type="text" id="address" placeholder="123 Main St, Worthington, OH" />
+  </label>
+
+  <label>Phone
+    <input type="tel" id="phone" placeholder="614-555-0123" />
+  </label>
+
+  <label>Job Notes
+    <textarea id="notes" rows="2" placeholder="Access notes, special requests, etc."></textarea>
+  </label>
+
+  <label>Square Feet
+    <input type="number" id="sqft" value="2200" />
+  </label>
+
+  <label>System Type
+    <select id="system_type">
+      <option value="central_ac">Central AC</option>
+      <option value="heat_pump">Heat Pump</option>
+      <option value="furnace">Furnace</option>
+      <option value="mini_split">Mini Split</option>
+    </select>
+  </label>
+
+  <label>Home Age (years)
+    <input type="number" id="home_age_years" value="25" />
+  </label>
+
+  <label>ZIP
+    <input type="text" id="zip" value="43085" />
+  </label>
+
+  <button type="submit">Get Estimate</button>
+</form>
+
+<div id="result" class="hidden"></div>
+
+  </main>
+
+  <footer>
+    <small>Preliminary estimate only. Final pricing after on-site inspection.</small>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>

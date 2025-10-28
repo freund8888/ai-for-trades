@@ -1,0 +1,64 @@
+﻿:root {
+  --bg:#0b1320; --fg:#f2f5fb; --muted:#9aa4b2; --card:#151d2d; --accent:#4da3ff;
+}
+
+*{ box-sizing:border-box; font-family: ui-sans-serif,system-ui,Segoe UI,Roboto; }
+body{ margin:0; background:var(--bg); color:var(--fg); }
+
+header{ padding:1rem 1.25rem; border-bottom:1px solid #1f2937; }
+h1{ margin:0; font-size:1.25rem; }
+.tag{ color:var(--muted); margin:.25rem 0 0; }
+
+main{ max-width:740px; margin:0 auto; padding:1rem; display:grid; gap:1rem; }
+
+.card{
+  background:var(--card);
+  border:1px solid #223049;
+  border-radius:14px;
+  padding:1rem;
+}
+
+.section-title{
+  margin:.25rem 0 .5rem;
+  font-size:1rem;
+  color:var(--muted);
+  font-weight:600;
+  letter-spacing:.2px;
+}
+
+form{ display:grid; gap:.75rem; }
+label{ display:grid; gap:.25rem; font-size:.9rem; color:var(--muted); }
+input,select,textarea,button{
+  padding:.75rem; border-radius:10px; border:1px solid #2a3a57; background:#0e1626; color:var(--fg);
+}
+button{
+  background:var(--accent); border-color:transparent; color:#05111f; font-weight:600; cursor:pointer;
+}
+
+.hidden{ display:none; }
+
+/* Quote card layout */
+.quote-header{ display:grid; gap:.25rem; margin-bottom:.75rem; }
+.quote-customer{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.quote-customer .cust-piece{
+  display:inline;
+  margin-right:.5rem;
+}
+.quote-customer .cust-piece:not(:last-child)::after{
+  content:"•";
+  margin-left:.5rem;
+}
+
+.quote-job{ color:var(--muted); font-size:.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.quote-section{ border-top:1px solid #223049; padding-top:.75rem; margin-top:.75rem; }
+.quote-row{ display:flex; justify-content:space-between; align-items:baseline; gap:1rem; margin:.25rem 0; }
+.quote-label{ color:var(--muted); font-size:.9rem; }
+.quote-value{ font-weight:600; }
+
+.quote-list{ margin:.25rem 0 0 1rem; }
+.quote-foot{ margin-top:.75rem; color:var(--muted); font-size:.85rem; }
