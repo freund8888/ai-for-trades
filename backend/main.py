@@ -83,10 +83,10 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 app = FastAPI(title="AI for Trades – HVAC Estimator API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS or ["*"],  # tighten later
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS or ["http://127.0.0.1:5173", "http://localhost:5173"],
+    allow_credentials=False,                 # no cookies in this demo
+    allow_methods=["GET", "POST", "OPTIONS"],# allow preflight + post
+    allow_headers=["*"],                     # accept Content-Type etc.
 )
 
 # Input model (validates request body)
@@ -126,8 +126,10 @@ from prompts import HVAC_SYSTEM_PROMPT
 def health():
     return {"ok": True, "model": MODEL}
 
-@app.post("/estimate", response_model=EstimateOut, dependencies=[Depends(verify_api_key)])
+@app.post("/estimate", response_model=EstimateOut)
 def estimate(payload: EstimateIn):
+    ...
+
 
     user_prompt = (
         f"sqft={payload.sqft}; system_type={payload.system_type}; "
