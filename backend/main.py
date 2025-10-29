@@ -11,13 +11,16 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",                        # Vite dev (optional)
 ]
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,   # keep False unless you actually use cookies/auth
-    allow_methods=["*"],       # handles OPTIONS preflight too
+    allow_origins=["*"],     # TEMP: allow all origins
+    allow_credentials=False, # must be False when using "*"
+    allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/health")
 def health():
