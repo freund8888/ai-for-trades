@@ -1,31 +1,32 @@
-﻿ 1 <!DOCTYPE html>
- 2 <html lang="en">
- 3   <head>
- 4     <meta charset="UTF-8" />
- 5     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
- 6     <title>AI for Trades Demo</title>
- 7     <link rel="stylesheet" href="styles.css" />
- 8   </head>
- 9   <body>
-10     <main>
-11       <h1>AI for Trades — Demo</h1>
-12       <form id="estimateForm">
-13         <input id="input" placeholder="Enter data…" required />
-14         <button type="submit">Estimate</button>
-15       </form>
-16       <pre id="output" aria-live="polite"></pre>
-17     </main>
-18
-19     <!-- Runtime config block: edit API_BASE after backend is deployed -->
-20     <script>
-21       window.ENV = {
-22         // IMPORTANT: change this to your real Render backend URL in Step 4.3
-23         // Example: "https://ai-for-trades-backend.onrender.com"
-24         API_BASE: "http://localhost:8000"
-25       };
-26     </script>
-27
-28     <!-- App code -->
-29     <script src="app.js" defer></script>
-30   </body>
-31 </html>
+﻿<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI for Trades Demo</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+
+  <body>
+    <main>
+      <h1>AI for Trades — Demo</h1>
+
+      <form id="estimateForm">
+        <input id="input" placeholder="Enter data…" required />
+        <button type="submit">Estimate</button>
+      </form>
+
+      <pre id="output" aria-live="polite"></pre>
+    </main>
+
+    <!-- Runtime config: update API_BASE to your Render backend URL after deploy -->
+    <script>
+      window.ENV = {
+        // Example: "https://ai-for-trades-backend.onrender.com"
+        API_BASE: "https://ai-for-trades-backend.onrender.com"
+      };
+    </script>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
