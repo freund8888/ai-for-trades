@@ -2,41 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AI for Trades — Job Estimator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI for Trades Demo</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
+
   <body>
-    <header class="site-header">
-      <div class="container">
-        <h1>AI for Trades — Job Estimator</h1>
-        <p class="subtitle">Enter a brief job description and get an instant AI-powered estimate.</p>
-      </div>
-    </header>
+    <main>
+      <h1>AI for Trades — Demo</h1>
 
-    <main class="container">
-      <section class="card">
-        <form id="estimateForm" class="form">
-          <label for="input" class="label">Job details</label>
-          <textarea id="input" class="input" rows="5" placeholder="Example: Replace 40ft of 6” gutter on a two-story house, include downspouts and haul away…" required></textarea>
+      <form id="estimateForm">
+        <input id="input" placeholder="Enter data…" required />
+        <button type="submit">Estimate</button>
+      </form>
 
-          <div class="actions">
-            <button type="submit" class="btn">Estimate</button>
-          </div>
-        </form>
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">Estimate Result</h2>
-        <pre id="output" class="output" aria-live="polite">Waiting for input…</pre>
-      </section>
+      <pre id="output" aria-live="polite"></pre>
     </main>
 
-    <footer class="site-footer">
-      <div class="container">
-        <small>© 2025 ASI — AI for Trades</small>
-      </div>
-    </footer>
+    <!-- Runtime config: update API_BASE to your Render backend URL after deploy -->
+    <script>
+      window.ENV = {
+        // Example: "https://ai-for-trades-backend.onrender.com"
+        API_BASE: "https://ai-for-trades-backend.onrender.com"
+      };
+    </script>
 
     <script src="app.js" defer></script>
   </body>
