@@ -1,22 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import os
 
-# --- DIAGNOSTIC: print whether Render sees the env var at import time ---
-print("DIAG: main.py imported.")
-print("DIAG: OPENAI_API_KEY present?", bool(os.getenv("OPENAI_API_KEY")))
+app = FastAPI()
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-
-app = FastAPI(title="AI for Trades Backend")
+ALLOWED_ORIGINS = [
+    "https://ai-for-trades-frontend.onrender.com",  # your live frontend
+    "http://localhost:5173",                        # keep for local dev (optional)
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL, "http://localhost:3000", "http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["*"],   # ensures OPTIONS preflight is handled
     allow_headers=["*"],
 )
+
 
 @app.get("/health")
 def health():
