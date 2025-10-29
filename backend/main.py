@@ -29,8 +29,20 @@ def env_check():
         "frontend_url": os.getenv("FRONTEND_URL", "")
     }
 
+from typing import Any, Dict
+from fastapi import Request
+
 @app.post("/estimate")
-def estimate(payload: dict):
-    # Demo logic to prove the server runs; replace with real impl later
-    user_input = payload.get("input", "")
-    return {"received": user_input, "estimate": 42}
+async def estimate(request: Request) -> Dict[str, Any]:
+    # Read JSON body (ignore content for now)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    # Return a simple, known-good response
+    return {
+        "ok": True,
+        "estimate": 1234.56,
+        "inputs_echo": payload.get("inputs", {})
+    }
