@@ -1,18 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
-
-ALLOWED_ORIGINS = [
-    "https://ai-for-trades-frontend.onrender.com",  # your live frontend
-    "http://localhost:5173",                        # keep for local dev (optional)
-]
+app = FastAPI()  # ← this line must come before the middleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],   # ensures OPTIONS preflight is handled
+    allow_origins=["*"],   # TEMP: open to all origins just to test
+    allow_credentials=False,  # must be False when using "*"
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
