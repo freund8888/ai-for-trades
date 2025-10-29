@@ -1,74 +1,31 @@
-﻿<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HVAC Estimator</title>
-
-  <!-- Styles (version bump breaks cache) -->
-  <link rel="stylesheet" href="./styles.css?v=3">
-</head>
-<body>
-  <header>
-    <h1>HVAC Estimator</h1>
-    <p class="tag">AI-assisted preliminary quote</p>
-  </header>
-
-  <main>
-    <!-- Result card appears above the form so it stays visible after submit -->
-    <section id="result" class="card hidden"></section>
-
-    <form id="estForm" class="card">
-      <h2 class="section-title">Customer & Job</h2>
-
-      <label>Customer Name
-        <input type="text" id="customer_name" placeholder="Jane Contractor" />
-      </label>
-
-      <label>Address
-        <input type="text" id="address" placeholder="123 Main St, Worthington, OH" />
-      </label>
-
-      <label>Phone
-        <input type="tel" id="phone" placeholder="614-555-0123" />
-      </label>
-
-      <label>Job Notes
-        <textarea id="notes" rows="2" placeholder="Access notes, special requests, etc."></textarea>
-      </label>
-
-      <h2 class="section-title">HVAC Inputs</h2>
-
-      <label>Square Feet
-        <input type="number" id="sqft" min="300" max="10000" value="2200" required />
-      </label>
-
-      <label>System Type
-        <select id="system_type">
-          <option value="central_ac">Central AC</option>
-          <option value="heat_pump">Heat Pump</option>
-          <option value="furnace">Furnace</option>
-          <option value="mini_split">Mini Split</option>
-        </select>
-      </label>
-
-      <label>Home Age (years)
-        <input type="number" id="home_age_years" min="0" max="150" value="25" required />
-      </label>
-
-      <label>ZIP
-        <input type="text" id="zip" pattern="[0-9]{5}(-[0-9]{4})?" value="43085" required />
-      </label>
-
-      <button type="submit">Get Estimate</button>
-    </form>
-  </main>
-
-  <footer>
-    <small>Preliminary estimate only. Final pricing after on-site inspection.</small>
-  </footer>
-
-  <!-- Script (version bump breaks cache) -->
-  <script src="./app.js?v=4"></script>
-</body>
-</html>
+﻿ 1 <!DOCTYPE html>
+ 2 <html lang="en">
+ 3   <head>
+ 4     <meta charset="UTF-8" />
+ 5     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ 6     <title>AI for Trades Demo</title>
+ 7     <link rel="stylesheet" href="styles.css" />
+ 8   </head>
+ 9   <body>
+10     <main>
+11       <h1>AI for Trades — Demo</h1>
+12       <form id="estimateForm">
+13         <input id="input" placeholder="Enter data…" required />
+14         <button type="submit">Estimate</button>
+15       </form>
+16       <pre id="output" aria-live="polite"></pre>
+17     </main>
+18
+19     <!-- Runtime config block: edit API_BASE after backend is deployed -->
+20     <script>
+21       window.ENV = {
+22         // IMPORTANT: change this to your real Render backend URL in Step 4.3
+23         // Example: "https://ai-for-trades-backend.onrender.com"
+24         API_BASE: "http://localhost:8000"
+25       };
+26     </script>
+27
+28     <!-- App code -->
+29     <script src="app.js" defer></script>
+30   </body>
+31 </html>
