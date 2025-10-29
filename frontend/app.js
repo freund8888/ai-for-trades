@@ -1,8 +1,6 @@
 ﻿// Read API base from runtime config, fallback to local dev
-const API_BASE =
-  (window.ENV && window.ENV.API_BASE)
-    ? window.ENV.API_BASE
-    : "http://localhost:8000";
+const API_BASE = "https://ai-for-trades.onrender.com";
+
 
 async function callEstimate(input) {
   const res = await fetch(`${API_BASE}/estimate`, {
