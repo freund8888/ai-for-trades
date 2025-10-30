@@ -1,6 +1,9 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Any, Dict
+from pydantic import BaseModel
+from typing import Optional
+
 
 app = FastAPI(title="AI for Trades API")
 
@@ -17,14 +20,14 @@ app.add_middleware(
 def health():
     return {"ok": True}
 
+class EstimateRequest(BaseModel):
+    inputs: Optional[Dict[str, Any]] = None
+
 @app.post("/estimate")
-async def estimate(request: Request) -> Dict[str, Any]:
-    """
-    Test endpoint to confirm backend is reachable and POST body works.
-    """
-    payload = await request.json()
+async def estimate(req: EstimateRequest) -> Dict[str, Any]:
     return {
         "ok": True,
         "message": "Estimate endpoint reached successfully!",
-        "received_payload": payload
+        "received_payload": req.model_dump(),
     }
+
