@@ -21,10 +21,12 @@ class EstimateRequest(BaseModel):
 def health():
     return {"ok": True}
 
+from fastapi import Body
+
 @app.post("/estimate")
-def estimate(req: EstimateRequest) -> Dict[str, Any]:
+def estimate(req: dict = Body(default={})):
     return {
         "ok": True,
         "message": "Estimate endpoint reached successfully!",
-        "received_payload": req.model_dump(),
+        "received_payload": req,
     }
