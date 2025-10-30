@@ -1,6 +1,7 @@
 from typing import Any, Dict
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Body
 
 app = FastAPI(title="AI for Trades API")
 
@@ -21,18 +22,9 @@ def health():
 
 # --- Estimate endpoint ---
 @app.post("/estimate")
-async def estimate(request: Request) -> Dict[str, Any]:
-    """
-    Accepts any JSON payload and echoes it back.
-    Once verified working, this will be replaced with real logic.
-    """
-    try:
-        payload = await request.json()
-    except Exception:
-        payload = {}
-
+async def estimate(req: dict = Body(default={})):
     return {
         "ok": True,
         "message": "Estimate endpoint reached successfully!",
-        "received_payload": payload,
+        "received_payload": req,
     }
