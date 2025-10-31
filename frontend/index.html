@@ -2,73 +2,219 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="x-ua-compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HVAC Estimator</title>
 
-  <!-- Styles (version bump breaks cache) -->
-  <link rel="stylesheet" href="./styles.css?v=3">
+  <title>AI for Trades — Job Estimator</title>
+
+  <meta name="description" content="Fast, transparent job estimates for trades using AI." />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/styles.css?v=106" />
+
+
+  <!-- Favicons (optional placeholders) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛠️</text></svg>">
+  <meta name="theme-color" content="#0b5cff" />
 </head>
+
 <body>
-  <header>
-    <h1>HVAC Estimator</h1>
-    <p class="tag">AI-assisted preliminary quote</p>
+  <header class="site-header" id="siteHeader">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">🛠️</span>
+      <h1 class="title">AI for Trades — Job Estimator</h1>
+      <span class="version-badge" id="appVersion" data-version>v105</span>
+    </div>
+
+    <div class="env">
+      <label for="backendBase" class="sr-only">Backend Base URL</label>
+      <input
+        id="backendBase"
+        name="backendBase"
+        type="url"
+        class="input"
+        value="https://ai-for-trades.onrender.com"
+        placeholder="https://your-backend.example.com"
+        data-backend-base
+      />
+      <label for="endpointPath" class="sr-only">Endpoint Path</label>
+      <input
+        id="endpointPath"
+        name="endpointPath"
+        type="text"
+        class="input"
+        value="/estimate"
+        placeholder="/estimate"
+        data-endpoint-path
+      />
+      <button id="pingBtn" class="btn btn-secondary" type="button">Ping</button>
+    </div>
   </header>
 
-  <main>
-    <!-- Result card appears above the form so it stays visible after submit -->
-    <section id="result" class="card hidden"></section>
+  <main class="container" id="container">
+    <!-- Status / alerts -->
+    <div id="statusBar" class="status-bar" role="status" aria-live="polite">
+      <span id="statusIcon" class="status-dot status-idle" aria-hidden="true"></span>
+      <span id="statusText">Ready.</span>
+    </div>
 
-    <form id="estForm" class="card">
-      <h2 class="section-title">Customer & Job</h2>
+    <!-- Form + Output grid -->
+    <section class="grid">
+      <!-- Estimator Form -->
+      <form id="estimateForm" class="card" novalidate>
+        <div class="card-header">
+          <h2>Job Details</h2>
+          <div class="card-actions">
+            <button id="resetFormBtn" class="btn btn-ghost" type="button">Reset</button>
+          </div>
+        </div>
 
-      <label>Customer Name
-        <input type="text" id="customer_name" placeholder="Jane Contractor" />
-      </label>
+        <div class="card-body">
+          <div class="field">
+            <label for="tradeType">Trade</label>
+            <select id="tradeType" name="tradeType" class="input" required>
+              <option value="" disabled selected>Select a trade</option>
+              <option>HVAC</option>
+              <option>Electrical</option>
+              <option>Plumbing</option>
+              <option>Carpentry</option>
+              <option>General</option>
+            </select>
+            <p class="hint">Choose the primary trade for this estimate.</p>
+          </div>
 
-      <label>Address
-        <input type="text" id="address" placeholder="123 Main St, Worthington, OH" />
-      </label>
+          <div class="field">
+            <label for="jobTitle">Job Title</label>
+            <input id="jobTitle" name="jobTitle" class="input" placeholder="e.g., Replace 3-ton condenser" />
+          </div>
 
-      <label>Phone
-        <input type="tel" id="phone" placeholder="614-555-0123" />
-      </label>
+          <div class="field">
+            <label for="jobDescription">Scope / Notes</label>
+            <textarea id="jobDescription" name="jobDescription" class="input" rows="6" placeholder="Describe the job, site conditions, materials, constraints, etc." required></textarea>
+          </div>
 
-      <label>Job Notes
-        <textarea id="notes" rows="2" placeholder="Access notes, special requests, etc."></textarea>
-      </label>
+          <div class="field-group two-col">
+            <div class="field">
+              <label for="laborHours">Estimated Labor (hrs)</label>
+              <input id="laborHours" name="laborHours" type="number" min="0" step="0.25" class="input" value="4" />
+            </div>
+            <div class="field">
+              <label for="laborRate">Labor Rate ($/hr)</label>
+              <input id="laborRate" name="laborRate" type="number" min="0" step="1" class="input" value="125" />
+            </div>
+          </div>
 
-      <h2 class="section-title">HVAC Inputs</h2>
+          <div class="field">
+            <label for="materials">Key Materials (comma separated)</label>
+            <input id="materials" name="materials" class="input" placeholder="e.g., 3-ton condenser, line set, disconnect, pad" />
+          </div>
 
-      <label>Square Feet
-        <input type="number" id="sqft" min="300" max="10000" value="2200" required />
-      </label>
+          <div class="field-group three-col">
+            <div class="field">
+              <label for="markupPercent">Material Markup %</label>
+              <input id="markupPercent" name="markupPercent" type="number" min="0" step="1" class="input" value="25" />
+            </div>
+            <div class="field">
+              <label for="overheadPercent">Overhead %</label>
+              <input id="overheadPercent" name="overheadPercent" type="number" min="0" step="1" class="input" value="12" />
+            </div>
+            <div class="field">
+              <label for="profitPercent">Profit %</label>
+              <input id="profitPercent" name="profitPercent" type="number" min="0" step="1" class="input" value="15" />
+            </div>
+          </div>
 
-      <label>System Type
-        <select id="system_type">
-          <option value="central_ac">Central AC</option>
-          <option value="heat_pump">Heat Pump</option>
-          <option value="furnace">Furnace</option>
-          <option value="mini_split">Mini Split</option>
-        </select>
-      </label>
+          <div class="field-group three-col">
+            <div class="field">
+              <label for="salesTaxPercent">Sales Tax %</label>
+              <input id="salesTaxPercent" name="salesTaxPercent" type="number" min="0" step="0.1" class="input" value="7.5" />
+            </div>
+            <div class="field">
+              <label for="travelMiles">Travel (miles)</label>
+              <input id="travelMiles" name="travelMiles" type="number" min="0" step="1" class="input" value="10" />
+            </div>
+            <div class="field">
+              <label for="rushToggle">Rush?</label>
+              <select id="rushToggle" name="rushToggle" class="input">
+                <option value="no" selected>No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </div>
+          </div>
 
-      <label>Home Age (years)
-        <input type="number" id="home_age_years" min="0" max="150" value="25" required />
-      </label>
+          <div class="field">
+            <label for="location">Job Location (City, ST)</label>
+            <input id="location" name="location" class="input" placeholder="e.g., Columbus, OH" />
+          </div>
 
-      <label>ZIP
-        <input type="text" id="zip" pattern="[0-9]{5}(-[0-9]{4})?" value="43085" required />
-      </label>
+          <div class="field">
+            <label for="referenceId">Reference ID (optional)</label>
+            <input id="referenceId" name="referenceId" class="input" placeholder="Internal or customer-facing ID" />
+          </div>
+        </div>
 
-      <button type="submit">Get Estimate</button>
-    </form>
+        <div class="card-footer">
+          <button id="estimateBtn" class="btn btn-primary" type="submit">Generate Estimate</button>
+          <button id="exportPdfBtn" class="btn" type="button">Export PDF</button>
+          <button id="copyJsonBtn" class="btn btn-ghost" type="button">Copy JSON</button>
+        </div>
+      </form>
+
+      <!-- Output Pane -->
+      <section id="outputPane" class="card">
+        <div class="card-header">
+          <h2>Estimate Preview</h2>
+          <div class="card-actions">
+            <button id="toggleViewBtn" class="btn btn-ghost" type="button" aria-pressed="false" data-view="summary">Summary</button>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div id="quotePreview" class="quote-preview" data-view="summary" aria-live="polite">
+            <div class="placeholder">
+              <p>Fill in the form and click <strong>Generate Estimate</strong> to preview the quote.</p>
+            </div>
+          </div>
+
+          <pre id="jsonOutput" class="json-output" hidden></pre>
+        </div>
+      </section>
+    </section>
+
+    <!-- Diagnostic panel -->
+    <details id="diagnostics" class="diagnostics">
+      <summary>Diagnostics</summary>
+      <div class="diag-grid">
+        <div>
+          <h4>Endpoint</h4>
+          <code id="endpointDisplay" data-endpoint>https://ai-for-trades.onrender.com/estimate</code>
+        </div>
+        <div>
+          <h4>Last Request</h4>
+          <pre id="lastRequest" class="mini-log">(none)</pre>
+        </div>
+        <div>
+          <h4>Last Response</h4>
+          <pre id="lastResponse" class="mini-log">(none)</pre>
+        </div>
+      </div>
+    </details>
+
+    <!-- Inline errors -->
+    <div id="inlineErrors" class="inline-errors" aria-live="assertive"></div>
   </main>
 
-  <footer>
-    <small>Preliminary estimate only. Final pricing after on-site inspection.</small>
+  <footer class="site-footer">
+    <p>&copy; <span id="year"></span> AI for Trades. All rights reserved.</p>
   </footer>
 
-  <!-- Script (version bump breaks cache) -->
-  <script src="./app.js?v=4"></script>
+  <!-- Script last; defer to ensure DOM is available for querySelector calls -->
+  <script src="./app.js?v=5" defer></script>
+  <script>
+    // Minimal boot to avoid null selectors before app.js loads
+    (function() {
+      const yearEl = document.getElementById('year');
+      if (yearEl) yearEl.textContent = new Date().getFullYear();
+    })();
+  </script>
 </body>
 </html>
