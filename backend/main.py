@@ -1,30 +1,19 @@
-from typing import Any, Dict
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Body
+# backend/main.py (Flask)
+from flask import Flask, jsonify
+from flask_cors import CORS
 
-app = FastAPI(title="AI for Trades API")
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": [
+    "https://ai-for-trades-frontend.onrender.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+]}})
+# If you need credentials: CORS(app, supports_credentials=True, ...)
 
-# --- CORS Configuration ---
-# TEMP: open to all origins while testing connectivity.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,   # must be False when using "*"
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.route("/", methods=["GET"])
+def root():
+    return jsonify(ok=True, service="ai-for-trades-api"))
 
-# --- Health check endpoint ---
-@app.get("/health")
-def health():
-    return {"ok": True}
-
-# --- Estimate endpoint ---
-@app.post("/estimate")
-async def estimate(req: dict = Body(default={})):
-    return {
-        "ok": True,
-        "message": "Estimate endpoint reached successfully!",
-        "received_payload": req,
-    }
+# keep your /estimate route as-is
