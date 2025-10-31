@@ -7,13 +7,24 @@ from typing import List, Optional
 app = FastAPI(title="AI for Trades API", version="v106")
 
 # --- CORS (start permissive to verify; tighten later) ---
+from fastapi.middleware.cors import CORSMiddleware
+
+ALLOWED_ORIGINS = [
+    "https://ai-for-trades-frontend.onrender.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],              # ← after it works, replace with your frontend origin(s)
-    allow_credentials=True,
-    allow_methods=["*"],              # includes GET/POST/OPTIONS for preflight
-    allow_headers=["*"],              # includes content-type, authorization, etc.
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,  # IMPORTANT: must be False when using wildcard-free origins
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 
 # --- Models ---
 class EstimateIn(BaseModel):
