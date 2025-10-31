@@ -1,32 +1,38 @@
 # backend/main.py
-from fastapi import FastAPI, Request
+from datetime import datetime
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import List, Optional
 
-app = FastAPI(title="AI for Trades API", version="v106")
-
-# --- CORS (start permissive to verify; tighten later) ---
-from fastapi.middleware.cors import CORSMiddleware
+app = FastAPI(title="AI for Trades API", version="v106.1")
 
 ALLOWED_ORIGINS = [
     "https://ai-for-trades-frontend.onrender.com",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5500",
-    "http://127.0.0.1:5500",
+    "http://localhost:3000", "http://127.0.0.1:3000",
+    "http://localhost:5500", "http://127.0.0.1:5500",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,  # IMPORTANT: must be False when using wildcard-free origins
+    allow_credentials=False,   # no cookies; simpler CORS
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+@app.get("/")
+def root():
+    # If you see this change on the live URL, we know THIS file is running.
+    return {
+        "ok": True,
+        "service": "ai-for-trades-api",
+        "version": "v106.1",
+        "deployed_at": datetime.utcnow().isoformat() + "Z",
+        "allowed_origins": ALLOWED_ORIGINS,
+    }
 
-# --- Models ---
+# --- simple working /estimate so the frontend can test POST without 500s ---
 class EstimateIn(BaseModel):
     trade: Optional[str] = ""
     title: Optional[str] = ""
@@ -43,58 +49,12 @@ class EstimateIn(BaseModel):
     location: Optional[str] = ""
     referenceId: Optional[str] = ""
 
-class EstimateOut(BaseModel):
-    ok: bool = True
-    referenceId: Optional[str] = ""
-    summary: str
-    breakdown: dict
-
-# --- Routes ---
-@app.get("/")
-def root():
-    return {"ok": True, "service": "ai-for-trades-api", "version": "v106"}
-
-@app.post("/estimate", response_model=EstimateOut)
-async def estimate(payload: EstimateIn, request: Request):
-    # Basic calc (placeholder — replace with your real logic)
+@app.post("/estimate")
+def estimate(payload: EstimateIn):
     labor_cost = payload.laborHours * payload.laborRate
-    material_subtotal = 0.0  # you can enhance to parse material costs later
-    markup = material_subtotal * (payload.markupPercent / 100.0)
-    overhead = (labor_cost + material_subtotal) * (payload.overheadPercent / 100.0)
-    profit = (labor_cost + material_subtotal + markup + overhead) * (payload.profitPercent / 100.0)
-    subtotal = labor_cost + material_subtotal + markup + overhead + profit
-    sales_tax = subtotal * (payload.salesTaxPercent / 100.0)
-    travel_cost = 0.0  # add your per-mile logic if desired
-    rush_fee = subtotal * 0.1 if payload.rush else 0.0
-    total = round(subtotal + sales_tax + travel_cost + rush_fee, 2)
-
-    summary_lines = [
-        f"Trade: {payload.trade or '(n/a)'}",
-        f"Title: {payload.title or '(n/a)'}",
-        f"Labor: {payload.laborHours}h @ ${payload.laborRate}/h = ${labor_cost:.2f}",
-        f"Materials: {', '.join(payload.materials) if payload.materials else '(none)'}",
-        f"Overhead: {payload.overheadPercent}%",
-        f"Profit: {payload.profitPercent}%",
-        f"Sales Tax: {payload.salesTaxPercent}%",
-        f"Rush: {'Yes' if payload.rush else 'No'}",
-        f"Location: {payload.location or '(n/a)'}",
-        f"Total (est.): ${total:.2f}",
-    ]
-
-    return EstimateOut(
-        ok=True,
-        referenceId=payload.referenceId or "",
-        summary="\n".join(summary_lines),
-        breakdown={
-            "laborCost": round(labor_cost, 2),
-            "materialSubtotal": round(material_subtotal, 2),
-            "markup": round(markup, 2),
-            "overhead": round(overhead, 2),
-            "profit": round(profit, 2),
-            "subtotal": round(subtotal, 2),
-            "salesTax": round(sales_tax, 2),
-            "travelCost": round(travel_cost, 2),
-            "rushFee": round(rush_fee, 2),
-            "total": total,
-        },
-    )
+    subtotal = labor_cost
+    total = round(subtotal * (1 + payload.salesTaxPercent/100), 2)
+    return {
+        "ok": True,
+        "summary": f"Labor: {payload.laborHours}h @ ${payload.laborRate}/h = ${labor_cost:.2f}\nTotal (est.): ${total:.2f}"
+    }
