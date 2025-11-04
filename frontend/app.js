@@ -1,292 +1,188 @@
-﻿// ============================================================
-// AI for Trades - Job Estimator (Frontend Logic)
-// v106.10 - Fix: MutationObserver loop guarded; customer preview stable
-// ============================================================
+﻿// AI for Trades — app.js v106.10d
+// Stable customer card + estimate flow without touching your layout or stylesheet.
 
-// DOM READY UTIL ------------------------------------------------------------
-document.addEventListener('DOMContentLoaded', () => {
-  const backendBaseInput = document.querySelector('[data-backend-base]');
-  const endpointPathInput = document.querySelector('[data-endpoint-path]');
-  const estimateForm = document.getElementById('estimateForm');
-  const statusText = document.getElementById('statusText');
-  const statusDot = document.getElementById('statusIcon');
-  const jsonOutput = document.getElementById('jsonOutput');
-  const quotePreview = document.getElementById('quotePreview');
-  const copyJsonBtn = document.getElementById('copyJsonBtn');
-  const exportPdfBtn = document.getElementById('exportPdfBtn');
-  const toggleViewBtn = document.getElementById('toggleViewBtn');
-  const resetFormBtn = document.getElementById('resetFormBtn');
-
-  // Helper: Set status bar
-  function setStatus(state, message) {
-    if (statusText) statusText.textContent = message;
-    if (statusDot) statusDot.className = `status-dot status-${state}`;
-  }
-
-  // Helper: Compose endpoint
-  function getEndpoint() {
-    const base = backendBaseInput ? backendBaseInput.value : '';
-    const path = endpointPathInput ? endpointPathInput.value : '';
-    return `${base}${path}`;
-  }
-
-  // Ping backend ------------------------------------------------------------
-  const pingBtn = document.getElementById('pingBtn');
-  if (pingBtn) {
-    pingBtn.addEventListener('click', async () => {
-      setStatus('pending', 'Pinging backend...');
-      try {
-        const url = getEndpoint().replace('/estimate', '/');
-        const res = await fetch(url, { method: 'GET' });
-        if (!res.ok) throw new Error(`Status ${res.status}`);
-        setStatus('ok', 'Backend reachable!');
-      } catch (err) {
-        setStatus('error', 'Ping failed.');
-      }
-    });
-  }
-
-  // Estimate form submission ------------------------------------------------
-  if (estimateForm) {
-    estimateForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      setStatus('pending', 'Generating estimate...');
-
-      const formData = new FormData(estimateForm);
-      const data = Object.fromEntries(formData.entries());
-
-      try {
-        const res = await fetch(getEndpoint(), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const result = await res.json();
-
-        // Update JSON preview
-        if (jsonOutput) {
-          jsonOutput.textContent = JSON.stringify(result, null, 2);
-          jsonOutput.hidden = true; // default to summary view
-        }
-
-        // Update text preview
-        if (quotePreview) {
-          quotePreview.hidden = false;
-          quotePreview.innerHTML = `<div class="summary-block">
-            <p><strong>Estimate Summary</strong><br>
-            Trade: ${data.tradeType || '-'}<br>
-            Title: ${data.jobTitle || '-'}<br>
-            Labor: ${data.laborHours || 0}h @ $${data.laborRate || 0}/h<br>
-            Materials: ${data.materials || '-'}<br>
-            Location: ${data.location || '-'}<br>
-            <br>
-            <strong>Total:</strong> ${result.total_formatted || '$0.00'}</p>
-          </div>`;
-        }
-
-        // Explicitly refresh the customer preview AFTER we render the summary
-        if (window.upsertCustomerPreview) {
-          window.upsertCustomerPreview();
-          setTimeout(window.upsertCustomerPreview, 50);
-          setTimeout(window.upsertCustomerPreview, 200);
-        }
-
-        setStatus('ok', 'Estimate generated.');
-      } catch (err) {
-        setStatus('error', 'Failed to generate estimate.');
-        if (quotePreview) quotePreview.innerHTML = `<p class="error">${err.message}</p>`;
-      }
-    });
-  }
-
-  // Reset form --------------------------------------------------------------
-  if (resetFormBtn) {
-    resetFormBtn.addEventListener('click', () => {
-      estimateForm.reset();
-      if (quotePreview) {
-        quotePreview.hidden = false;
-        quotePreview.innerHTML = `<div class="placeholder">
-          <p>Fill in the form and click <strong>Generate Estimate</strong> to preview the quote.</p>
-        </div>`;
-      }
-      if (jsonOutput) jsonOutput.hidden = true;
-      setStatus('idle', 'Ready.');
-      if (window.upsertCustomerPreview) window.upsertCustomerPreview();
-    });
-  }
-
-  // Toggle JSON / Summary view ----------------------------------------------
-  if (toggleViewBtn) {
-    toggleViewBtn.addEventListener('click', () => {
-      const showingSummary = toggleViewBtn.dataset.view === 'summary';
-      toggleViewBtn.dataset.view = showingSummary ? 'json' : 'summary';
-      toggleViewBtn.textContent = showingSummary ? 'JSON' : 'Summary';
-      if (quotePreview) quotePreview.hidden = !showingSummary;
-      if (jsonOutput) jsonOutput.hidden = showingSummary;
-      // Keep customer card visible only in Summary view
-      const cust = document.getElementById('custPreview');
-      const mount = document.getElementById('customerPreviewMount');
-      if (cust && mount) cust.style.display = showingSummary ? '' : 'none';
-    });
-  }
-
-  // Copy JSON ---------------------------------------------------------------
-  if (copyJsonBtn) {
-    copyJsonBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(jsonOutput.textContent);
-        setStatus('ok', 'JSON copied to clipboard');
-      } catch {
-        setStatus('error', 'Copy failed');
-      }
-    });
-  }
-
-  // Export PDF (placeholder) -------------------------------------------------
-  if (exportPdfBtn) {
-    exportPdfBtn.addEventListener('click', () => {
-      window.print(); // Simple prototype method
-    });
-  }
-});
-
-// ============================================================================
-// Customer block → Estimate Preview (resilient to re-renders)
-// Guards against observer-induced loops while updating DOM
-// Exposes window.upsertCustomerPreview so main render can call it explicitly
-// ============================================================================
 (function () {
-  const form = document.getElementById('estimateForm');
-  const outputPane = document.getElementById('outputPane');
-  if (!form || !outputPane) return;
+  const $ = (s, r = document) => r.querySelector(s);
 
-  let observer;       // will hold our MutationObserver
-  let obsBusy = false; // debounce/lock against recursive loops
+  // ---- State ----
+  const state = {
+    inflight: false,
+    apiUrl: '/estimate', // adjust if you use an absolute backend URL
+  };
 
-  function getPreviewRoot() {
-    return document.getElementById('quotePreview');
+  // ---- Customer helpers ----
+  const FIELD_IDS = ['firstName', 'lastName', 'phone', 'email', 'address'];
+
+  function getInput(idOrName) {
+    return document.getElementById(idOrName) || document.querySelector(`[name="${idOrName}"]`);
   }
 
-  function ensureMount() {
-    let mount = document.getElementById('customerPreviewMount');
-    if (mount) return mount;
-    const cardBody = outputPane.querySelector('.card-body');
-    if (!cardBody) return null;
-    mount = document.createElement('div');
-    mount.id = 'customerPreviewMount';
-    cardBody.insertBefore(mount, cardBody.firstChild);
-    return mount;
+  function readCustomer() {
+    const val = (k) => {
+      const el = getInput(k);
+      return (el?.value ?? el?.textContent ?? '').trim();
+    };
+    return {
+      firstName: val('firstName'),
+      lastName:  val('lastName'),
+      phone:     val('phone'),
+      email:     val('email'),
+      address:   val('address'),
+    };
   }
 
-  function val(id) {
-    const el = document.getElementById(id);
-    return el && typeof el.value === 'string' ? el.value.trim() : '';
+  function isEmptyCustomer(c) {
+    return !(c.firstName || c.lastName || c.phone || c.email || c.address);
   }
 
-  // Safely update DOM without the observer firing on our own changes
-  function safeDOMUpdate(fn) {
-    if (observer) observer.disconnect();
-    try { fn(); } finally {
-      if (observer) observer.observe(outputPane, { childList: true, subtree: true });
+  function ensureCustomerCard() {
+    // Card is already in HTML with id="customerCard"
+    return $('#customerCard');
+  }
+
+  function renderCustomerCard(cust) {
+    const card = ensureCustomerCard();
+    if (!card) return;
+
+    if (!cust || isEmptyCustomer(cust)) {
+      // hide via HTML 'hidden' attribute (no CSS class required)
+      card.hidden = true;
+      return;
+    }
+
+    const safe = (v) => (v && v.length ? v : '—');
+    const name = `${cust.firstName ?? ''} ${cust.lastName ?? ''}`.trim() || 'Customer';
+
+    const set = (id, text) => {
+      const el = $('#' + id, card);
+      if (el) el.textContent = text;
+    };
+    set('custName', name);
+    set('custPhone', safe(cust.phone));
+    set('custEmail', safe(cust.email));
+    set('custAddress', safe(cust.address));
+
+    card.hidden = false;
+  }
+
+  function bindLiveCustomerPreview() {
+    // Initial render on load
+    renderCustomerCard(readCustomer());
+
+    // Live updates on user input
+    FIELD_IDS.forEach((k) => {
+      const el = getInput(k);
+      if (!el) return;
+      const h = () => renderCustomerCard(readCustomer());
+      el.addEventListener('input', h);
+      el.addEventListener('change', h);
+    });
+
+    // Ensure reset hides the card
+    const form = $('#estimateForm');
+    if (form) {
+      form.addEventListener('reset', () => {
+        // values clear after 'reset' event; defer read
+        setTimeout(() => renderCustomerCard(readCustomer()), 0);
+      });
     }
   }
 
-  function _upsert() {
-    const mount = ensureMount();
-    const previewRoot = getPreviewRoot();
-    if (!mount || !previewRoot) return;
+  // ---- Inline error ----
+  function showInlineError(msg) {
+    const el = $('#inlineError');
+    if (!el) return console.warn('[aft] inlineError container missing');
+    el.textContent = msg || 'An error occurred.';
+    el.hidden = false;
+    // Auto-hide after 5s (optional)
+    setTimeout(() => { if (el) el.hidden = true; }, 5000);
+  }
 
-    const data = {
-      name: val('custName'),
-      company: val('custCompany'),
-      phone: val('custPhone'),
-      email: val('custEmail'),
-      addr1: val('custAddress1'),
-      addr2: val('custAddress2'),
-      city: val('custCity'),
-      state: val('custState'),
-      zip: val('custZip'),
-      pref: val('prefContact'),
-      start: val('targetStart'),
-      notes: val('customerNotes')
+  // ---- Payload gatherer ----
+  function gatherPayload() {
+    // Collect customer + basic job fields. Extend as needed for your estimator.
+    const customer = readCustomer();
+    const job = {
+      description: ($('#jobDescription')?.value || '').trim(),
     };
+    return { customer, job };
+  }
 
-    const hasAny = Object.values(data).some(Boolean);
+  // ---- Estimate flow ----
+  async function doEstimate() {
+    if (state.inflight) return;
 
-    safeDOMUpdate(() => {
-      let block = document.getElementById('custPreview');
+    const btn = $('#estimateBtn');
+    state.inflight = true;
+    if (btn) btn.disabled = true;
 
-      if (!hasAny) {
-        if (block) block.remove();
+    const url = state.apiUrl;
+    const payload = gatherPayload();
+
+    console.groupCollapsed('[estimate] request');
+    console.log('POST', url, payload);
+    const t0 = performance.now();
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+      });
+
+      const text = await res.text();
+      let data;
+      try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+
+      console.log('status:', res.status, res.statusText);
+      console.log('response:', data);
+
+      if (!res.ok) {
+        showInlineError(`Estimate failed (${res.status}).`);
         return;
       }
 
-      if (!block) {
-        block = document.createElement('div');
-        block.id = 'custPreview';
-        block.className = 'cust-preview';
-        // Mount at the top (do NOT clear mount.innerHTML; just insert/replace)
-        mount.prepend(block);
+      // If API returns enriched customer, sync the card
+      if (data && data.customer) {
+        renderCustomerCard(data.customer);
       }
 
-      const cityState = [data.city, data.state].filter(Boolean).join(', ');
-      const cityStateZip = cityState ? (data.zip ? `${cityState} ${data.zip}` : cityState) : (data.zip || '');
-
-      const rows = [];
-      const row = (label, value) => {
-        if (!value) return;
-        rows.push(`<div class="kv"><label>${label}</label><strong>${value}</strong></div>`);
-      };
-
-      row('Name', data.name);
-      row('Company', data.company);
-      row('Phone', data.phone);
-      row('Email', data.email);
-
-      const addressParts = [data.addr1, data.addr2, cityStateZip].filter(Boolean);
-      if (addressParts.length) row('Address', addressParts.join('<br>'));
-
-      row('Preferred Contact', data.pref);
-      row('Target Start', data.start);
-      row('Notes', data.notes);
-
-      block.innerHTML = `
-        <div class="cust-preview__head">Customer</div>
-        <div class="cust-preview__body">
-          ${rows.join('')}
-        </div>
-      `;
-    });
+      const out = $('#estimateOutput');
+      if (out) {
+        out.value = JSON.stringify(data, null, 2);
+      }
+    } catch (err) {
+      console.error('network error:', err);
+      showInlineError('Network error while requesting estimate.');
+    } finally {
+      const dt = Math.round(performance.now() - t0);
+      console.log('durationMs:', dt);
+      console.groupEnd();
+      state.inflight = false;
+      if (btn) btn.disabled = false;
+    }
   }
 
-  // Expose callable for main flow
-  window.upsertCustomerPreview = _upsert;
+  function bindEstimateActions() {
+    const btn  = $('#estimateBtn');
+    const form = $('#estimateForm');
+    if (btn)  btn.addEventListener('click', (e) => { e.preventDefault(); doEstimate(); });
+    if (form) form.addEventListener('submit', (e) => { e.preventDefault(); doEstimate(); });
+  }
 
-  // Rebuild after submit (immediate + small delays)
-  form.addEventListener('submit', function () {
-    _upsert();
-    setTimeout(_upsert, 50);
-    setTimeout(_upsert, 200);
-  });
+  // ---- Safe init ----
+  function init() {
+    bindLiveCustomerPreview();
+    bindEstimateActions();
+  }
 
-  // Observe output pane but debounce and only react to relevant changes
-  observer = new MutationObserver((mutations) => {
-    if (obsBusy) return;
-    // Only react if quotePreview subtree changed
-    const relevant = mutations.some(m => {
-      if (m.type !== 'childList') return false;
-      if (!m.target) return false;
-      // Check if the mutation target IS quotePreview or contains it / is inside it
-      const target = m.target.nodeType === 1 ? m.target : null;
-      if (!target) return false;
-      return target.id === 'quotePreview' || !!target.closest?.('#quotePreview');
-    });
-    if (!relevant) return;
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
 
-    obsBusy = true;
-    Promise.resolve().then(() => _upsert()).finally(() => { obsBusy = false; });
-  });
-  observer.observe(outputPane, { childList: true, subtree: true });
+  // Optional: expose for quick debugging
+  window.__aft = { readCustomer, renderCustomerCard, doEstimate };
 })();

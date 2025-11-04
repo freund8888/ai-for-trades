@@ -9,184 +9,71 @@
 
   <meta name="description" content="Fast, transparent job estimates for trades using AI." />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Keep your existing stylesheet; no new inline CSS added -->
   <link rel="stylesheet" href="/styles.css?v=106.6">
-
-  <style>
-    /* Utility: hide element */
-    .hidden {
-      display: none !important;
-    }
-
-    /* Customer summary card */
-    .customer-card {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 16px;
-      background: #fafafa;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .customer-card .cust-field {
-      margin-bottom: 4px;
-      font-size: 0.95rem;
-    }
-    .customer-card .name {
-      font-weight: 600;
-      font-size: 1rem;
-    }
-
-    /* Inline error */
-    #inlineError {
-      color: #b00020;
-      background: #fdecea;
-      border: 1px solid #f5c2c7;
-      padding: 8px;
-      margin-top: 12px;
-      border-radius: 6px;
-      font-size: 0.9rem;
-    }
-
-    body {
-      font-family: system-ui, sans-serif;
-      margin: 2rem;
-      line-height: 1.4;
-    }
-
-    form input, form button, textarea {
-      display: block;
-      width: 100%;
-      margin-bottom: 0.75rem;
-      padding: 0.5rem;
-      font-size: 1rem;
-    }
-
-    textarea {
-      min-height: 200px;
-      font-family: monospace;
-    }
-  </style>
+  <!-- Keep/restore your favicon (adjust path if your icon file differs) -->
+  <link rel="icon" href="/favicon.ico" />
 </head>
 
 <body>
   <header>
     <h1>AI for Trades — Job Estimator</h1>
-    <p>Fast, transparent job estimates powered by AI.</p>
   </header>
 
-  <main>
-    <!-- Job Estimate Form -->
-    <form id="estimateForm">
-      <label for="firstName">First Name</label>
-      <input id="firstName" name="firstName" type="text" placeholder="First Name" />
+  <main id="app">
+    <!-- Left side: form -->
+    <section id="left-pane">
+      <form id="estimateForm" autocomplete="on">
+        <!-- Customer fields (IDs and names aligned with app.js) -->
+        <label for="firstName">First Name</label>
+        <input id="firstName" name="firstName" type="text" placeholder="First Name" />
 
-      <label for="lastName">Last Name</label>
-      <input id="lastName" name="lastName" type="text" placeholder="Last Name" />
+        <label for="lastName">Last Name</label>
+        <input id="lastName" name="lastName" type="text" placeholder="Last Name" />
 
-      <label for="phone">Phone</label>
-      <input id="phone" name="phone" type="tel" placeholder="(555) 555-5555" />
+        <label for="phone">Phone</label>
+        <input id="phone" name="phone" type="tel" placeholder="(555) 555-5555" />
 
-      <label for="email">Email</label>
-      <input id="email" name="email" type="email" placeholder="you@example.com" />
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" placeholder="you@example.com" />
 
-      <label for="address">Address</label>
-      <input id="address" name="address" type="text" placeholder="123 Main St" />
+        <label for="address">Address</label>
+        <input id="address" name="address" type="text" placeholder="123 Main St" />
 
-      <!-- You can add your trade/job fields below -->
-      <label for="jobDescription">Job Description</label>
-      <textarea id="jobDescription" name="jobDescription" placeholder="Describe the job..."></textarea>
+        <!-- Example job field (keep/extend as needed) -->
+        <label for="jobDescription">Job Description</label>
+        <textarea id="jobDescription" name="jobDescription" placeholder="Describe the job..."></textarea>
 
-      <button id="estimateBtn" type="submit">Generate Estimate</button>
-      <button type="reset">Reset</button>
-    </form>
+        <div class="actions">
+          <button id="estimateBtn" type="submit">Generate Estimate</button>
+          <button type="reset">Reset</button>
+        </div>
+      </form>
 
-    <!-- 🟩 Customer Summary Card (new) -->
-    <div id="customerCard" class="hidden customer-card">
-      <div id="custName" class="cust-field name"></div>
-      <div id="custPhone" class="cust-field phone"></div>
-      <div id="custEmail" class="cust-field email"></div>
-      <div id="custAddress" class="cust-field address"></div>
-    </div>
+      <!-- Customer summary card (starts hidden via the HTML 'hidden' attribute, no CSS required) -->
+      <section id="customerCard" hidden aria-live="polite" aria-label="Customer summary">
+        <div><strong>Name:</strong> <span id="custName"></span></div>
+        <div><strong>Phone:</strong> <span id="custPhone"></span></div>
+        <div><strong>Email:</strong> <span id="custEmail"></span></div>
+        <div><strong>Address:</strong> <span id="custAddress"></span></div>
+      </section>
 
-    <!-- Inline error area -->
-    <div id="inlineError" class="hidden"></div>
+      <!-- Inline error area (also starts hidden) -->
+      <div id="inlineError" hidden></div>
+    </section>
 
-    <!-- Estimate Output -->
-    <h2>Estimate Results</h2>
-    <textarea id="estimateOutput" readonly placeholder="Estimate results will appear here..."></textarea>
+    <!-- Right side: results / output -->
+    <section id="right-pane">
+      <h2>Estimate Results</h2>
+      <textarea id="estimateOutput" readonly placeholder="Estimate results will appear here..."></textarea>
+    </section>
   </main>
 
-  <footer style="margin-top:2rem; font-size:0.85rem; color:#666;">
-    <p>AI for Trades Prototype — v106.6a</p>
+  <footer>
+    <small>AI for Trades Prototype — v106.6b</small>
   </footer>
 
-  <script src="/app.js?v=106.10c"></script>
-
-<script>
-/* v106.10c-inline — Live Customer Card hotfix */
-(function () {
-  if (window.__aftLiveCardBound) return; // avoid duplicates on hot reloads
-  window.__aftLiveCardBound = true;
-
-  const $ = (s, r=document) => r.querySelector(s);
-  const FIELD_IDS = { firstName:'firstName', lastName:'lastName', phone:'phone', email:'email', address:'address' };
-
-  function getInput(idOrName){ return document.getElementById(idOrName) || document.querySelector(`[name="${idOrName}"]`); }
-  function getVal(idOrName){ const el=getInput(idOrName); return (el?.value ?? el?.textContent ?? '').trim(); }
-
-  function readCustomer(){
-    return {
-      firstName: getVal(FIELD_IDS.firstName),
-      lastName:  getVal(FIELD_IDS.lastName),
-      phone:     getVal(FIELD_IDS.phone),
-      email:     getVal(FIELD_IDS.email),
-      address:   getVal(FIELD_IDS.address),
-    };
-  }
-
-  function isEmpty(c){ return !(c.firstName || c.lastName || c.phone || c.email || c.address); }
-
-  function renderCard(c){
-    const card = $('#customerCard'); if (!card) return;
-    if (!c || isEmpty(c)) { card.classList.add('hidden'); return; }
-    const safe = (v)=> (v && v.length ? v : '—');
-    const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || 'Customer';
-    const n=$('#custName',card), ph=$('#custPhone',card), em=$('#custEmail',card), ad=$('#custAddress',card);
-    if (n)  n.textContent  = name;
-    if (ph) ph.textContent = safe(c.phone);
-    if (em) em.textContent = safe(c.email);
-    if (ad) ad.textContent = safe(c.address);
-    card.classList.remove('hidden');
-  }
-
-  function bind(){
-    // Initial render (hidden if empty)
-    renderCard(readCustomer());
-
-    // Live updates
-    Object.values(FIELD_IDS).forEach(id=>{
-      const el=getInput(id); if (!el) return;
-      const h=()=>renderCard(readCustomer());
-      el.addEventListener('input', h);
-      el.addEventListener('change', h);
-    });
-
-    // Reset hides card
-    const form = $('#estimateForm');
-    if (form) form.addEventListener('reset', ()=> setTimeout(()=>renderCard(readCustomer()),0));
-  }
-
-  if (document.readyState==='loading') {
-    document.addEventListener('DOMContentLoaded', bind, {once:true});
-  } else {
-    bind();
-  }
-})();
-</script>
-
+  <!-- App script -->
+  <script src="/app.js?v=106.10d"></script>
 </body>
-
-
-
-
-
 </html>
