@@ -161,6 +161,88 @@
       () => setStatus('status-error', 'Copy failed.')
     );
   }
+// ----- Customer block → Estimate Preview (non-breaking) -----
+(function () {
+  const form = document.getElementById('estimateForm');
+  const previewRoot = document.getElementById('quotePreview');
+  if (!form || !previewRoot) return;
+
+  function val(id) {
+    const el = document.getElementById(id);
+    return el && typeof el.value === 'string' ? el.value.trim() : '';
+  }
+
+  function upsertCustomerPreview() {
+    if (!previewRoot) return;
+
+    // Collect values
+    const data = {
+      name: val('custName'),
+      company: val('custCompany'),
+      phone: val('custPhone'),
+      email: val('custEmail'),
+      addr1: val('custAddress1'),
+      addr2: val('custAddress2'),
+      city: val('custCity'),
+      state: val('custState'),
+      zip: val('custZip'),
+      pref: val('prefContact'),
+      start: val('targetStart'),
+      notes: val('customerNotes')
+    };
+
+    // If nothing is filled, hide the block
+    const hasAny =
+      Object.values(data).some(x => x && x.length > 0);
+
+    let block = document.getElementById('custPreview');
+    if (!hasAny) {
+      if (block) block.remove();
+      return;
+    }
+
+    // Create block if needed
+    if (!block) {
+      block = document.createElement('div');
+      block.id = 'custPreview';
+      block.className = 'cust-preview';
+      // Put customer info at the very top of the preview
+      previewRoot.prepend(block);
+    }
+
+    // Compose address line smartly
+    const cityStateZip = [data.city, data.state].filter(Boolean).join(', ') + (data.zip ? ` ${data.zip}` : '');
+    const addressLines = [data.addr1, data.addr2, cityStateZip].filter(s => s && s.trim().length > 0);
+
+    // Build rows only for non-empty fields
+    const rows = [];
+    function row(label, value) {
+      if (!value) return;
+      rows.push(`<div class="kv"><label>${label}</label><strong>${value}</strong></div>`);
+    }
+
+    row('Name', data.name);
+    row('Company', data.company);
+    row('Phone', data.phone);
+    row('Email', data.email);
+    if (addressLines.length) row('Address', addressLines.join('<br>'));
+    row('Preferred Contact', data.pref);
+    row('Target Start', data.start);
+    row('Notes', data.notes);
+
+    block.innerHTML = `
+      <div class="cust-preview__head">Customer</div>
+      <div class="cust-preview__body">
+        ${rows.join('')}
+      </div>
+    `;
+  }
+
+  // Hook after your existing submit logic runs; DOM update runs next tick
+  form.addEventListener('submit', function () {
+    setTimeout(upsertCustomerPreview, 0);
+  });
+})();
 
   function handleExportPdf() {
     // Let the browser's print-to-PDF handle it
