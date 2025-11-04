@@ -18,11 +18,12 @@
 </head>
 
 <body>
-  <header class="site-header" id="siteHeader">
+  <header class="site-header header" id="siteHeader">
     <div class="brand">
+      <span class="logo-dot" aria-hidden="true"></span>
       <span class="logo" aria-hidden="true">🛠️</span>
       <h1 class="title">AI for Trades — Job Estimator</h1>
-      <span class="version-badge" id="appVersion" data-version>v105</span>
+      <span class="version-badge" id="appVersion" data-version>v106.3</span>
     </div>
 
     <div class="env">
@@ -60,7 +61,7 @@
     <!-- Form + Output grid -->
     <section class="grid">
       <!-- Estimator Form -->
-      <form id="estimateForm" class="card" novalidate>
+      <form id="estimateForm" class="card panel" novalidate>
         <div class="card-header">
           <h2>Job Details</h2>
           <div class="card-actions">
@@ -160,7 +161,7 @@
       </form>
 
       <!-- Output Pane -->
-      <section id="outputPane" class="card">
+      <section id="outputPane" class="card result-card">
         <div class="card-header">
           <h2>Estimate Preview</h2>
           <div class="card-actions">
@@ -203,7 +204,7 @@
     <div id="inlineErrors" class="inline-errors" aria-live="assertive"></div>
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer footer">
     <p>&copy; <span id="year"></span> AI for Trades. All rights reserved.</p>
   </footer>
 
