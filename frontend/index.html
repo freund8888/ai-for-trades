@@ -25,7 +25,7 @@
       <span class="logo-dot" aria-hidden="true"></span>
       <span class="logo" aria-hidden="true">🛠️</span>
       <h1 class="title">AI for Trades — Job Estimator</h1>
-      <span class="version-badge" id="appVersion" data-version>v106.3</span>
+      <span class="version-badge" id="appVersion" data-version>v106.4</span>
     </div>
 
     <div class="env">
@@ -66,6 +66,86 @@
     <section class="grid">
       <!-- Estimator Form -->
       <form id="estimateForm" class="card panel" novalidate>
+
+
+        <!-- ===================== -->
+<!-- Customer Information  -->
+<!-- ===================== -->
+<div class="section-split">
+  <h3 class="subhead">Customer</h3>
+</div>
+
+<div class="field-group two-col">
+  <div class="field">
+    <label for="custName">Customer Name</label>
+    <input id="custName" name="custName" class="input" placeholder="e.g., Jane Doe" autocomplete="name" required />
+  </div>
+  <div class="field">
+    <label for="custCompany">Company (optional)</label>
+    <input id="custCompany" name="custCompany" class="input" placeholder="e.g., Apex Heating & Air" autocomplete="organization" />
+  </div>
+</div>
+
+<div class="field-group two-col">
+  <div class="field">
+    <label for="custPhone">Phone</label>
+    <input id="custPhone" name="custPhone" class="input" placeholder="(555) 123-4567" autocomplete="tel"
+           inputmode="tel" />
+  </div>
+  <div class="field">
+    <label for="custEmail">Email</label>
+    <input id="custEmail" name="custEmail" type="email" class="input" placeholder="name@example.com" autocomplete="email" />
+  </div>
+</div>
+
+<div class="field">
+  <label for="custAddress1">Address</label>
+  <input id="custAddress1" name="custAddress1" class="input" placeholder="Street address" autocomplete="address-line1" />
+</div>
+
+<div class="field">
+  <label for="custAddress2" class="sr-only">Address 2 (optional)</label>
+  <input id="custAddress2" name="custAddress2" class="input" placeholder="Apt / Suite / Unit (optional)" autocomplete="address-line2" />
+</div>
+
+<div class="field-group three-col">
+  <div class="field">
+    <label for="custCity">City</label>
+    <input id="custCity" name="custCity" class="input" placeholder="e.g., Columbus" autocomplete="address-level2" />
+  </div>
+  <div class="field">
+    <label for="custState">State</label>
+    <input id="custState" name="custState" class="input" placeholder="OH" maxlength="2" autocomplete="address-level1" />
+  </div>
+  <div class="field">
+    <label for="custZip">ZIP</label>
+    <input id="custZip" name="custZip" class="input" placeholder="43081" inputmode="numeric" autocomplete="postal-code" />
+  </div>
+</div>
+
+<div class="field-group two-col">
+  <div class="field">
+    <label for="prefContact">Preferred Contact</label>
+    <select id="prefContact" name="prefContact" class="input">
+      <option value="" selected>None selected</option>
+      <option value="phone">Phone</option>
+      <option value="email">Email</option>
+      <option value="text">Text</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="targetStart">Target Start (optional)</label>
+    <input id="targetStart" name="targetStart" type="date" class="input" />
+  </div>
+</div>
+
+<div class="field">
+  <label for="customerNotes">Customer Notes (optional)</label>
+  <textarea id="customerNotes" name="customerNotes" class="input" rows="4" placeholder="Any special access, pets, gate codes, times to avoid, etc."></textarea>
+</div>
+
+<!-- End Customer section -->
+
         <div class="card-header">
           <h2>Job Details</h2>
           <div class="card-actions">
