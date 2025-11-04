@@ -9,296 +9,184 @@
 
   <meta name="description" content="Fast, transparent job estimates for trades using AI." />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="/styles.css?v=106.7" />
+  <link rel="stylesheet" href="/styles.css?v=106.6">
 
-  <!-- Favicons (optional placeholders) -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛠️</text></svg>">
-  <meta name="theme-color" content="#0b5cff" />
+  <style>
+    /* Utility: hide element */
+    .hidden {
+      display: none !important;
+    }
+
+    /* Customer summary card */
+    .customer-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 16px;
+      background: #fafafa;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .customer-card .cust-field {
+      margin-bottom: 4px;
+      font-size: 0.95rem;
+    }
+    .customer-card .name {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    /* Inline error */
+    #inlineError {
+      color: #b00020;
+      background: #fdecea;
+      border: 1px solid #f5c2c7;
+      padding: 8px;
+      margin-top: 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 2rem;
+      line-height: 1.4;
+    }
+
+    form input, form button, textarea {
+      display: block;
+      width: 100%;
+      margin-bottom: 0.75rem;
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+
+    textarea {
+      min-height: 200px;
+      font-family: monospace;
+    }
+  </style>
 </head>
 
-<body class="demo">
-  <header class="site-header header" id="siteHeader">
-    <div class="header__inner">
-      <div class="brand">
-        <span class="logo-dot" aria-hidden="true"></span>
-        <span class="logo" aria-hidden="true">🛠️</span>
-        <h1 class="title">AI for Trades — Job Estimator</h1>
-        <span class="version-badge" id="appVersion" data-version>v106.7</span>
-      </div>
-
-      <div class="env">
-        <label for="backendBase" class="sr-only">Backend Base URL</label>
-        <input
-          id="backendBase"
-          name="backendBase"
-          type="url"
-          class="input"
-          value="https://ai-for-trades-api.onrender.com"
-          placeholder="https://your-backend.example.com"
-          data-backend-base
-        />
-        <label for="endpointPath" class="sr-only">Endpoint Path</label>
-        <input
-          id="endpointPath"
-          name="endpointPath"
-          type="text"
-          class="input"
-          value="/estimate"
-          placeholder="/estimate"
-          data-endpoint-path
-        />
-        <button id="pingBtn" class="btn btn-secondary" type="button">Ping</button>
-      </div>
-    </div>
+<body>
+  <header>
+    <h1>AI for Trades — Job Estimator</h1>
+    <p>Fast, transparent job estimates powered by AI.</p>
   </header>
 
-  <main class="container" id="container">
-    <!-- Status / alerts -->
-    <div id="statusBar" class="status-bar" role="status" aria-live="polite">
-      <span id="statusIcon" class="status-dot status-idle" aria-hidden="true"></span>
-      <span id="statusText">Ready.</span>
+  <main>
+    <!-- Job Estimate Form -->
+    <form id="estimateForm">
+      <label for="firstName">First Name</label>
+      <input id="firstName" name="firstName" type="text" placeholder="First Name" />
+
+      <label for="lastName">Last Name</label>
+      <input id="lastName" name="lastName" type="text" placeholder="Last Name" />
+
+      <label for="phone">Phone</label>
+      <input id="phone" name="phone" type="tel" placeholder="(555) 555-5555" />
+
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" placeholder="you@example.com" />
+
+      <label for="address">Address</label>
+      <input id="address" name="address" type="text" placeholder="123 Main St" />
+
+      <!-- You can add your trade/job fields below -->
+      <label for="jobDescription">Job Description</label>
+      <textarea id="jobDescription" name="jobDescription" placeholder="Describe the job..."></textarea>
+
+      <button id="estimateBtn" type="submit">Generate Estimate</button>
+      <button type="reset">Reset</button>
+    </form>
+
+    <!-- 🟩 Customer Summary Card (new) -->
+    <div id="customerCard" class="hidden customer-card">
+      <div id="custName" class="cust-field name"></div>
+      <div id="custPhone" class="cust-field phone"></div>
+      <div id="custEmail" class="cust-field email"></div>
+      <div id="custAddress" class="cust-field address"></div>
     </div>
 
-    <!-- Form + Output grid -->
-    <section class="grid">
-      <!-- Estimator Form -->
-      <form id="estimateForm" class="card panel" novalidate>
-        <div class="card-header">
-          <h2>Job Details</h2>
-          <div class="card-actions">
-            <button id="resetFormBtn" class="btn btn-ghost" type="button">Reset</button>
-          </div>
-        </div>
+    <!-- Inline error area -->
+    <div id="inlineError" class="hidden"></div>
 
-        <div class="card-body">
-          <!-- ===================== -->
-          <!-- Customer Information  -->
-          <!-- ===================== -->
-          <div class="section-split">
-            <h3 class="subhead">Customer</h3>
-          </div>
-
-          <div class="field-group two-col">
-            <div class="field">
-              <label for="custName">Customer Name</label>
-              <input id="custName" name="custName" class="input" placeholder="e.g., Jane Doe" autocomplete="name" required />
-            </div>
-            <div class="field">
-              <label for="custCompany">Company (optional)</label>
-              <input id="custCompany" name="custCompany" class="input" placeholder="e.g., Apex Heating & Air" autocomplete="organization" />
-            </div>
-          </div>
-
-          <div class="field-group two-col">
-            <div class="field">
-              <label for="custPhone">Phone</label>
-              <input id="custPhone" name="custPhone" class="input" placeholder="(555) 123-4567" autocomplete="tel" inputmode="tel" />
-            </div>
-            <div class="field">
-              <label for="custEmail">Email</label>
-              <input id="custEmail" name="custEmail" type="email" class="input" placeholder="name@example.com" autocomplete="email" />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="custAddress1">Address</label>
-            <input id="custAddress1" name="custAddress1" class="input" placeholder="Street address" autocomplete="address-line1" />
-          </div>
-
-          <div class="field">
-            <label for="custAddress2" class="sr-only">Address 2 (optional)</label>
-            <input id="custAddress2" name="custAddress2" class="input" placeholder="Apt / Suite / Unit (optional)" autocomplete="address-line2" />
-          </div>
-
-          <div class="field-group three-col">
-            <div class="field">
-              <label for="custCity">City</label>
-              <input id="custCity" name="custCity" class="input" placeholder="e.g., Columbus" autocomplete="address-level2" />
-            </div>
-            <div class="field">
-              <label for="custState">State</label>
-              <input id="custState" name="custState" class="input" placeholder="OH" maxlength="2" autocomplete="address-level1" />
-            </div>
-            <div class="field">
-              <label for="custZip">ZIP</label>
-              <input id="custZip" name="custZip" class="input" placeholder="43081" inputmode="numeric" autocomplete="postal-code" />
-            </div>
-          </div>
-
-          <div class="field-group two-col">
-            <div class="field">
-              <label for="prefContact">Preferred Contact</label>
-              <select id="prefContact" name="prefContact" class="input">
-                <option value="" selected>None selected</option>
-                <option value="phone">Phone</option>
-                <option value="email">Email</option>
-                <option value="text">Text</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="targetStart">Target Start (optional)</label>
-              <input id="targetStart" name="targetStart" type="date" class="input" />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="customerNotes">Customer Notes (optional)</label>
-            <textarea id="customerNotes" name="customerNotes" class="input" rows="4" placeholder="Any special access, pets, gate codes, times to avoid, etc."></textarea>
-          </div>
-
-          <!-- ===== Job Details ===== -->
-          <div class="section-split">
-            <h3 class="subhead">Job</h3>
-          </div>
-
-          <div class="field">
-            <label for="tradeType">Trade</label>
-            <select id="tradeType" name="tradeType" class="input" required>
-              <option value="" disabled selected>Select a trade</option>
-              <option>HVAC</option>
-              <option>Electrical</option>
-              <option>Plumbing</option>
-              <option>Carpentry</option>
-              <option>General</option>
-            </select>
-            <p class="hint">Choose the primary trade for this estimate.</p>
-          </div>
-
-          <div class="field">
-            <label for="jobTitle">Job Title</label>
-            <input id="jobTitle" name="jobTitle" class="input" placeholder="e.g., Replace 3-ton condenser" />
-          </div>
-
-          <div class="field">
-            <label for="jobDescription">Scope / Notes</label>
-            <textarea id="jobDescription" name="jobDescription" class="input" rows="6" placeholder="Describe the job, site conditions, materials, constraints, etc." required></textarea>
-          </div>
-
-          <div class="field-group two-col">
-            <div class="field">
-              <label for="laborHours">Estimated Labor (hrs)</label>
-              <input id="laborHours" name="laborHours" type="number" min="0" step="0.25" class="input" value="4" />
-            </div>
-            <div class="field">
-              <label for="laborRate">Labor Rate ($/hr)</label>
-              <input id="laborRate" name="laborRate" type="number" min="0" step="1" class="input" value="125" />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="materials">Key Materials (comma separated)</label>
-            <input id="materials" name="materials" class="input" placeholder="e.g., 3-ton condenser, line set, disconnect, pad" />
-          </div>
-
-          <div class="field-group three-col">
-            <div class="field">
-              <label for="markupPercent">Material Markup %</label>
-              <input id="markupPercent" name="markupPercent" type="number" min="0" step="1" class="input" value="25" />
-            </div>
-            <div class="field">
-              <label for="overheadPercent">Overhead %</label>
-              <input id="overheadPercent" name="overheadPercent" type="number" min="0" step="1" class="input" value="12" />
-            </div>
-            <div class="field">
-              <label for="profitPercent">Profit %</label>
-              <input id="profitPercent" name="profitPercent" type="number" min="0" step="1" class="input" value="15" />
-            </div>
-          </div>
-
-          <div class="field-group three-col">
-            <div class="field">
-              <label for="salesTaxPercent">Sales Tax %</label>
-              <input id="salesTaxPercent" name="salesTaxPercent" type="number" min="0" step="0.1" class="input" value="7.5" />
-            </div>
-            <div class="field">
-              <label for="travelMiles">Travel (miles)</label>
-              <input id="travelMiles" name="travelMiles" type="number" min="0" step="1" class="input" value="10" />
-            </div>
-            <div class="field">
-              <label for="rushToggle">Rush?</label>
-              <select id="rushToggle" name="rushToggle" class="input">
-                <option value="no" selected>No</option>
-                <option value="yes">Yes</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="location">Job Location (City, ST)</label>
-            <input id="location" name="location" class="input" placeholder="e.g., Columbus, OH" />
-          </div>
-
-          <div class="field">
-            <label for="referenceId">Reference ID (optional)</label>
-            <input id="referenceId" name="referenceId" class="input" placeholder="Internal or customer-facing ID" />
-          </div>
-        </div>
-
-        <div class="card-footer">
-          <button id="estimateBtn" class="btn btn-primary" type="submit">Generate Estimate</button>
-          <button id="exportPdfBtn" class="btn" type="button">Export PDF</button>
-          <button id="copyJsonBtn" class="btn btn-ghost" type="button">Copy JSON</button>
-        </div>
-      </form>
-
-      <!-- Output Pane -->
-      <section id="outputPane" class="card result-card">
-        <div class="card-header">
-          <h2>Estimate Preview</h2>
-          <div class="card-actions">
-            <button id="toggleViewBtn" class="btn btn-ghost" type="button" aria-pressed="false" data-view="summary">Summary</button>
-          </div>
-        </div>
-
-        <div class="card-body">
-          <div id="customerPreviewMount"></div>
-
-          <div id="quotePreview" class="quote-preview" data-view="summary" aria-live="polite">
-            <div class="placeholder">
-              <p>Fill in the form and click <strong>Generate Estimate</strong> to preview the quote.</p>
-            </div>
-          </div>
-
-          <pre id="jsonOutput" class="json-output" hidden></pre>
-        </div>
-      </section>
-    </section>
-
-    <!-- Diagnostic panel -->
-    <details id="diagnostics" class="diagnostics">
-      <summary>Diagnostics</summary>
-      <div class="diag-grid">
-        <div>
-          <h4>Endpoint</h4>
-          <code id="endpointDisplay" data-endpoint>https://ai-for-trades-api.onrender.com/estimate</code>
-        </div>
-        <div>
-          <h4>Last Request</h4>
-          <pre id="lastRequest" class="mini-log">(none)</pre>
-        </div>
-        <div>
-          <h4>Last Response</h4>
-          <pre id="lastResponse" class="mini-log">(none)</pre>
-        </div>
-      </div>
-    </details>
-
-    <!-- Inline errors -->
-    <div id="inlineErrors" class="inline-errors" aria-live="assertive"></div>
+    <!-- Estimate Output -->
+    <h2>Estimate Results</h2>
+    <textarea id="estimateOutput" readonly placeholder="Estimate results will appear here..."></textarea>
   </main>
 
-  <footer class="site-footer footer">
-    <p>&copy; <span id="year"></span> AI for Trades. All rights reserved.</p>
+  <footer style="margin-top:2rem; font-size:0.85rem; color:#666;">
+    <p>AI for Trades Prototype — v106.6a</p>
   </footer>
 
-  <!-- Script last; defer to ensure DOM is available for querySelector calls -->
-  <script src="./app.js?v=10" defer></script>
-  <script>
-    // Minimal boot to avoid null selectors before app.js loads
-    (function() {
-      const yearEl = document.getElementById('year');
-      if (yearEl) yearEl.textContent = new Date().getFullYear();
-    })();
-  </script>
+  <script src="/app.js?v=106.10c"></script>
+
+<script>
+/* v106.10c-inline — Live Customer Card hotfix */
+(function () {
+  if (window.__aftLiveCardBound) return; // avoid duplicates on hot reloads
+  window.__aftLiveCardBound = true;
+
+  const $ = (s, r=document) => r.querySelector(s);
+  const FIELD_IDS = { firstName:'firstName', lastName:'lastName', phone:'phone', email:'email', address:'address' };
+
+  function getInput(idOrName){ return document.getElementById(idOrName) || document.querySelector(`[name="${idOrName}"]`); }
+  function getVal(idOrName){ const el=getInput(idOrName); return (el?.value ?? el?.textContent ?? '').trim(); }
+
+  function readCustomer(){
+    return {
+      firstName: getVal(FIELD_IDS.firstName),
+      lastName:  getVal(FIELD_IDS.lastName),
+      phone:     getVal(FIELD_IDS.phone),
+      email:     getVal(FIELD_IDS.email),
+      address:   getVal(FIELD_IDS.address),
+    };
+  }
+
+  function isEmpty(c){ return !(c.firstName || c.lastName || c.phone || c.email || c.address); }
+
+  function renderCard(c){
+    const card = $('#customerCard'); if (!card) return;
+    if (!c || isEmpty(c)) { card.classList.add('hidden'); return; }
+    const safe = (v)=> (v && v.length ? v : '—');
+    const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || 'Customer';
+    const n=$('#custName',card), ph=$('#custPhone',card), em=$('#custEmail',card), ad=$('#custAddress',card);
+    if (n)  n.textContent  = name;
+    if (ph) ph.textContent = safe(c.phone);
+    if (em) em.textContent = safe(c.email);
+    if (ad) ad.textContent = safe(c.address);
+    card.classList.remove('hidden');
+  }
+
+  function bind(){
+    // Initial render (hidden if empty)
+    renderCard(readCustomer());
+
+    // Live updates
+    Object.values(FIELD_IDS).forEach(id=>{
+      const el=getInput(id); if (!el) return;
+      const h=()=>renderCard(readCustomer());
+      el.addEventListener('input', h);
+      el.addEventListener('change', h);
+    });
+
+    // Reset hides card
+    const form = $('#estimateForm');
+    if (form) form.addEventListener('reset', ()=> setTimeout(()=>renderCard(readCustomer()),0));
+  }
+
+  if (document.readyState==='loading') {
+    document.addEventListener('DOMContentLoaded', bind, {once:true});
+  } else {
+    bind();
+  }
+})();
+</script>
+
 </body>
+
+
+
+
+
 </html>
