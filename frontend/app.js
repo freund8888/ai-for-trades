@@ -1,171 +1,155 @@
-﻿// AI for Trades — minimal app.js v106
-(function () {
-  const $ = (s) => document.querySelector(s);
+﻿// ============================================================
+// AI for Trades - Job Estimator (Frontend Logic)
+// v106.8 - Stable with Customer Preview Resilience
+// ============================================================
 
-  // Elements (all exist in the v105+ index.html)
-  const pingBtn       = $('#pingBtn');
-  const statusDot     = $('#statusIcon');
-  const statusText    = $('#statusText');
-  const backendBaseEl = $('#backendBase');
-  const endpointPathEl= $('#endpointPath');
-  const endpointDisplay = $('#endpointDisplay');
-  const form          = $('#estimateForm');
-  const quotePreview  = $('#quotePreview');
-  const jsonOutput    = $('#jsonOutput');
-  const toggleViewBtn = $('#toggleViewBtn');
-  const resetFormBtn  = $('#resetFormBtn');
-  const copyJsonBtn   = $('#copyJsonBtn');
-  const exportPdfBtn  = $('#exportPdfBtn');
+// DOM READY UTIL ------------------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+  const backendBaseInput = document.querySelector('[data-backend-base]');
+  const endpointPathInput = document.querySelector('[data-endpoint-path]');
+  const estimateForm = document.getElementById('estimateForm');
+  const statusText = document.getElementById('statusText');
+  const statusDot = document.getElementById('statusIcon');
+  const jsonOutput = document.getElementById('jsonOutput');
+  const quotePreview = document.getElementById('quotePreview');
+  const copyJsonBtn = document.getElementById('copyJsonBtn');
+  const exportPdfBtn = document.getElementById('exportPdfBtn');
+  const toggleViewBtn = document.getElementById('toggleViewBtn');
+  const resetFormBtn = document.getElementById('resetFormBtn');
 
-  function setStatus(kind, text) {
-    statusDot.classList.remove('status-idle','status-ok','status-error');
-    statusDot.classList.add(kind);
-    statusText.textContent = text;
+  // Helper: Set status bar
+  function setStatus(state, message) {
+    statusText.textContent = message;
+    statusDot.className = `status-dot status-${state}`;
   }
 
-  function getBase() {
-    const base = (backendBaseEl?.value || '').trim().replace(/\/+$/,'');
-    return base || '';
+  // Helper: Compose endpoint
+  function getEndpoint() {
+    return `${backendBaseInput.value}${endpointPathInput.value}`;
   }
-  function getPath() {
-    const path = (endpointPathEl?.value || '/estimate').trim();
-    return path.startsWith('/') ? path : '/' + path;
-  }
-  function updateEndpointDisplay() {
-    if (endpointDisplay) endpointDisplay.textContent = getBase() + getPath();
-  }
-  updateEndpointDisplay();
 
-  // --- Ping: proves JS is running + backend is reachable over the network.
-  // We treat ANY HTTP response (200–499) as "reachable"; only network/CORS failure == error.
-  async function handlePing() {
-    const url = getBase() || '';
-    if (!url) {
-      setStatus('status-error', 'Set Backend Base URL first.');
-      return;
-    }
-    setStatus('status-idle', 'Pinging…');
-    try {
-      const res = await fetch(url, { method: 'GET', mode: 'cors' });
-      if (res.ok) {
-        setStatus('status-ok', `Ping OK (${res.status})`);
-      } else {
-        // 404 on "/" is expected for API-only backends; still proves reachability.
-        setStatus('status-ok', `Backend reachable (${res.status})`);
+  // Ping backend ------------------------------------------------------------
+  const pingBtn = document.getElementById('pingBtn');
+  if (pingBtn) {
+    pingBtn.addEventListener('click', async () => {
+      setStatus('pending', 'Pinging backend...');
+      try {
+        const res = await fetch(getEndpoint().replace('/estimate', '/'), { method: 'GET' });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        setStatus('ok', 'Backend reachable!');
+      } catch (err) {
+        setStatus('error', 'Ping failed.');
       }
-    } catch (err) {
-      setStatus('status-error', 'Network/CORS error — check backend URL and CORS.');
-      console.error('Ping error:', err);
-    }
+    });
   }
 
-  // --- Simple estimate submit (POST /estimate). Safe/no-crash preview only.
-  async function handleEstimateSubmit(e) {
-    e?.preventDefault?.();
-    const base = getBase();
-    const path = getPath();
-    updateEndpointDisplay();
-    if (!base) {
-      setStatus('status-error', 'Set Backend Base URL.');
-      return;
-    }
-    const url = base + path;
+  // Estimate form submission ------------------------------------------------
+  if (estimateForm) {
+    estimateForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      setStatus('pending', 'Generating estimate...');
 
-    // Collect minimal payload
-    const data = {
-      trade: $('#tradeType')?.value || '',
-      title: $('#jobTitle')?.value || '',
-      description: $('#jobDescription')?.value || '',
-      laborHours: Number($('#laborHours')?.value || 0),
-      laborRate: Number($('#laborRate')?.value || 0),
-      materials: ($('#materials')?.value || '').split(',').map(s => s.trim()).filter(Boolean),
-      markupPercent: Number($('#markupPercent')?.value || 0),
-      overheadPercent: Number($('#overheadPercent')?.value || 0),
-      profitPercent: Number($('#profitPercent')?.value || 0),
-      salesTaxPercent: Number($('#salesTaxPercent')?.value || 0),
-      travelMiles: Number($('#travelMiles')?.value || 0),
-      rush: ($('#rushToggle')?.value || 'no') === 'yes',
-      location: $('#location')?.value || '',
-      referenceId: $('#referenceId')?.value || ''
-    };
+      const formData = new FormData(estimateForm);
+      const data = Object.fromEntries(formData.entries());
 
-    setStatus('status-idle', 'Submitting estimate…');
-    $('#lastRequest') && ($('#lastRequest').textContent = JSON.stringify({ url, data }, null, 2));
+      try {
+        const res = await fetch(getEndpoint(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
 
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const result = await res.json();
 
-      const text = await res.text().catch(() => '');
-      let json;
-      try { json = JSON.parse(text); } catch { /* not JSON */ }
+        // Update JSON preview
+        jsonOutput.textContent = JSON.stringify(result, null, 2);
 
-      $('#lastResponse') && ($('#lastResponse').textContent = text || `(empty, status ${res.status})`);
+        // Update text preview
+        quotePreview.innerHTML = `<div class="summary-block">
+          <p><strong>Estimate Summary</strong><br>
+          Trade: ${data.tradeType || '-'}<br>
+          Title: ${data.jobTitle || '-'}<br>
+          Labor: ${data.laborHours || 0}h @ $${data.laborRate || 0}/h<br>
+          Materials: ${data.materials || '-'}<br>
+          Location: ${data.location || '-'}<br>
+          <br>
+          <strong>Total:</strong> ${result.total_formatted || '$0.00'}</p>
+        </div>`;
 
-      if (res.ok && json) {
-        setStatus('status-ok', 'Estimate OK');
-        // Pretty summary
-        quotePreview.textContent =
-          `Estimate Summary\n\n` +
-          `Trade: ${data.trade}\nTitle: ${data.title}\n` +
-          `Labor: ${data.laborHours}h @ $${data.laborRate}/h\n` +
-          `Materials: ${data.materials.join(', ') || '(none)'}\n` +
-          `Location: ${data.location || '(n/a)'}\n\n` +
-          (json.summary || JSON.stringify(json, null, 2));
-        jsonOutput.textContent = JSON.stringify(json, null, 2);
-      } else {
-        // Still show network success with status code
-        setStatus('status-error', `Estimate request failed (${res.status})`);
-        quotePreview.textContent = `Request to ${url} failed with status ${res.status}.\nBody:\n${text}`;
-        jsonOutput.textContent = text;
+        setStatus('ok', 'Estimate generated.');
+      } catch (err) {
+        setStatus('error', 'Failed to generate estimate.');
+        quotePreview.innerHTML = `<p class='error'>${err.message}</p>`;
       }
-    } catch (err) {
-      setStatus('status-error', 'Network/CORS error on /estimate.');
-      quotePreview.textContent = `Network/CORS error: ${err?.message || err}`;
-      console.error(err);
-    }
+    });
   }
 
-  function handleToggleView() {
-    const showingSummary = !jsonOutput.hasAttribute('hidden');
-    if (showingSummary) {
-      jsonOutput.setAttribute('hidden', '');
-      quotePreview.removeAttribute('hidden');
-      toggleViewBtn?.setAttribute('aria-pressed', 'false');
-    } else {
-      quotePreview.setAttribute('hidden', '');
-      jsonOutput.removeAttribute('hidden');
-      toggleViewBtn?.setAttribute('aria-pressed', 'true');
-    }
+  // Reset form --------------------------------------------------------------
+  if (resetFormBtn) {
+    resetFormBtn.addEventListener('click', () => {
+      estimateForm.reset();
+      quotePreview.innerHTML = `<div class="placeholder">
+        <p>Fill in the form and click <strong>Generate Estimate</strong> to preview the quote.</p>
+      </div>`;
+      jsonOutput.hidden = true;
+      setStatus('idle', 'Ready.');
+    });
   }
 
-  function handleResetForm() {
-    form?.reset?.();
-    setStatus('status-idle', 'Ready.');
-    quotePreview.textContent = 'Fill in the form and click Generate Estimate to preview the quote.';
-    jsonOutput.textContent = '';
-    jsonOutput.setAttribute('hidden', '');
-    quotePreview.removeAttribute('hidden');
-    updateEndpointDisplay();
+  // Toggle JSON / Summary view ----------------------------------------------
+  if (toggleViewBtn) {
+    toggleViewBtn.addEventListener('click', () => {
+      const showingSummary = toggleViewBtn.dataset.view === 'summary';
+      toggleViewBtn.dataset.view = showingSummary ? 'json' : 'summary';
+      toggleViewBtn.textContent = showingSummary ? 'JSON' : 'Summary';
+      quotePreview.hidden = !showingSummary;
+      jsonOutput.hidden = showingSummary;
+    });
   }
 
-  function handleCopyJson() {
-    const txt = jsonOutput.textContent || '';
-    if (!txt) { setStatus('status-error','No JSON to copy.'); return; }
-    navigator.clipboard.writeText(txt).then(
-      () => setStatus('status-ok', 'JSON copied.'),
-      () => setStatus('status-error', 'Copy failed.')
-    );
+  // Copy JSON ---------------------------------------------------------------
+  if (copyJsonBtn) {
+    copyJsonBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(jsonOutput.textContent);
+        setStatus('ok', 'JSON copied to clipboard');
+      } catch {
+        setStatus('error', 'Copy failed');
+      }
+    });
   }
-// ----- Customer block → Estimate Preview (non-breaking) -----
+
+  // Export PDF (placeholder) -------------------------------------------------
+  if (exportPdfBtn) {
+    exportPdfBtn.addEventListener('click', () => {
+      window.print(); // Simple prototype method
+    });
+  }
+});
+
+// ============================================================================
+// Customer block → Estimate Preview (resilient to re-renders)
+// ============================================================================
 (function () {
   const form = document.getElementById('estimateForm');
-  const previewRoot = document.getElementById('quotePreview');
-  if (!form || !previewRoot) return;
+  const outputPane = document.getElementById('outputPane');
+  if (!form || !outputPane) return;
+
+  function getPreviewRoot() {
+    return document.getElementById('quotePreview');
+  }
+
+  function ensureMount() {
+    let mount = document.getElementById('customerPreviewMount');
+    if (mount) return mount;
+    const cardBody = outputPane.querySelector('.card-body');
+    if (!cardBody) return null;
+    mount = document.createElement('div');
+    mount.id = 'customerPreviewMount';
+    cardBody.insertBefore(mount, cardBody.firstChild);
+    return mount;
+  }
 
   function val(id) {
     const el = document.getElementById(id);
@@ -173,9 +157,10 @@
   }
 
   function upsertCustomerPreview() {
-    if (!previewRoot) return;
+    const mount = ensureMount();
+    const previewRoot = getPreviewRoot();
+    if (!mount || !previewRoot) return;
 
-    // Collect values
     const data = {
       name: val('custName'),
       company: val('custCompany'),
@@ -191,41 +176,39 @@
       notes: val('customerNotes')
     };
 
-    // If nothing is filled, hide the block
-    const hasAny =
-      Object.values(data).some(x => x && x.length > 0);
-
+    const hasAny = Object.values(data).some(Boolean);
     let block = document.getElementById('custPreview');
+
     if (!hasAny) {
       if (block) block.remove();
       return;
     }
 
-    // Create block if needed
     if (!block) {
       block = document.createElement('div');
       block.id = 'custPreview';
       block.className = 'cust-preview';
-      // Put customer info at the very top of the preview
-      previewRoot.prepend(block);
+      mount.innerHTML = '';
+      mount.appendChild(block);
     }
 
-    // Compose address line smartly
-    const cityStateZip = [data.city, data.state].filter(Boolean).join(', ') + (data.zip ? ` ${data.zip}` : '');
-    const addressLines = [data.addr1, data.addr2, cityStateZip].filter(s => s && s.trim().length > 0);
+    const cityState = [data.city, data.state].filter(Boolean).join(', ');
+    const cityStateZip = cityState ? (data.zip ? `${cityState} ${data.zip}` : cityState) : (data.zip || '');
 
-    // Build rows only for non-empty fields
     const rows = [];
-    function row(label, value) {
+    const row = (label, value) => {
       if (!value) return;
       rows.push(`<div class="kv"><label>${label}</label><strong>${value}</strong></div>`);
-    }
+    };
 
     row('Name', data.name);
     row('Company', data.company);
     row('Phone', data.phone);
     row('Email', data.email);
-    if (addressLines.length) row('Address', addressLines.join('<br>'));
+
+    const addressParts = [data.addr1, data.addr2, cityStateZip].filter(Boolean);
+    if (addressParts.length) row('Address', addressParts.join('<br>'));
+
     row('Preferred Contact', data.pref);
     row('Target Start', data.start);
     row('Notes', data.notes);
@@ -238,25 +221,14 @@
     `;
   }
 
-  // Hook after your existing submit logic runs; DOM update runs next tick
   form.addEventListener('submit', function () {
-    setTimeout(upsertCustomerPreview, 0);
+    upsertCustomerPreview();
+    setTimeout(upsertCustomerPreview, 50);
+    setTimeout(upsertCustomerPreview, 200);
   });
-})();
 
-  function handleExportPdf() {
-    // Let the browser's print-to-PDF handle it
-    window.print();
-  }
-
-  // Wire events (guard in case elements are missing)
-  pingBtn      && pingBtn.addEventListener('click', handlePing);
-  form         && form.addEventListener('submit', handleEstimateSubmit);
-  toggleViewBtn&& toggleViewBtn.addEventListener('click', handleToggleView);
-  resetFormBtn && resetFormBtn.addEventListener('click', handleResetForm);
-  copyJsonBtn  && copyJsonBtn.addEventListener('click', handleCopyJson);
-  exportPdfBtn && exportPdfBtn.addEventListener('click', handleExportPdf);
-
-  // Initial state
-  setStatus('status-idle', 'Ready.');
+  const mo = new MutationObserver(() => {
+    upsertCustomerPreview();
+  });
+  mo.observe(outputPane, { childList: true, subtree: true });
 })();
