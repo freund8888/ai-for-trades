@@ -1,6 +1,6 @@
 ﻿// ============================================================
 // AI for Trades - Job Estimator (Frontend Logic)
-// v106.9 - Customer Preview resilient + explicitly refreshed after render
+// v106.10 - Fix: MutationObserver loop guarded; customer preview stable
 // ============================================================
 
 // DOM READY UTIL ------------------------------------------------------------
@@ -66,10 +66,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await res.json();
 
         // Update JSON preview
-        if (jsonOutput) jsonOutput.textContent = JSON.stringify(result, null, 2);
+        if (jsonOutput) {
+          jsonOutput.textContent = JSON.stringify(result, null, 2);
+          jsonOutput.hidden = true; // default to summary view
+        }
 
         // Update text preview
         if (quotePreview) {
+          quotePreview.hidden = false;
           quotePreview.innerHTML = `<div class="summary-block">
             <p><strong>Estimate Summary</strong><br>
             Trade: ${data.tradeType || '-'}<br>
@@ -92,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setStatus('ok', 'Estimate generated.');
       } catch (err) {
         setStatus('error', 'Failed to generate estimate.');
-        if (quotePreview) quotePreview.innerHTML = `<p class='error'>${err.message}</p>`;
+        if (quotePreview) quotePreview.innerHTML = `<p class="error">${err.message}</p>`;
       }
     });
   }
@@ -102,13 +106,13 @@ document.addEventListener('DOMContentLoaded', () => {
     resetFormBtn.addEventListener('click', () => {
       estimateForm.reset();
       if (quotePreview) {
+        quotePreview.hidden = false;
         quotePreview.innerHTML = `<div class="placeholder">
           <p>Fill in the form and click <strong>Generate Estimate</strong> to preview the quote.</p>
         </div>`;
       }
       if (jsonOutput) jsonOutput.hidden = true;
       setStatus('idle', 'Ready.');
-      // Clear customer preview on reset
       if (window.upsertCustomerPreview) window.upsertCustomerPreview();
     });
   }
@@ -121,6 +125,10 @@ document.addEventListener('DOMContentLoaded', () => {
       toggleViewBtn.textContent = showingSummary ? 'JSON' : 'Summary';
       if (quotePreview) quotePreview.hidden = !showingSummary;
       if (jsonOutput) jsonOutput.hidden = showingSummary;
+      // Keep customer card visible only in Summary view
+      const cust = document.getElementById('custPreview');
+      const mount = document.getElementById('customerPreviewMount');
+      if (cust && mount) cust.style.display = showingSummary ? '' : 'none';
     });
   }
 
@@ -146,12 +154,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ============================================================================
 // Customer block → Estimate Preview (resilient to re-renders)
+// Guards against observer-induced loops while updating DOM
 // Exposes window.upsertCustomerPreview so main render can call it explicitly
 // ============================================================================
 (function () {
   const form = document.getElementById('estimateForm');
   const outputPane = document.getElementById('outputPane');
   if (!form || !outputPane) return;
+
+  let observer;       // will hold our MutationObserver
+  let obsBusy = false; // debounce/lock against recursive loops
 
   function getPreviewRoot() {
     return document.getElementById('quotePreview');
@@ -171,6 +183,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function val(id) {
     const el = document.getElementById(id);
     return el && typeof el.value === 'string' ? el.value.trim() : '';
+  }
+
+  // Safely update DOM without the observer firing on our own changes
+  function safeDOMUpdate(fn) {
+    if (observer) observer.disconnect();
+    try { fn(); } finally {
+      if (observer) observer.observe(outputPane, { childList: true, subtree: true });
+    }
   }
 
   function _upsert() {
@@ -194,61 +214,79 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const hasAny = Object.values(data).some(Boolean);
-    let block = document.getElementById('custPreview');
 
-    if (!hasAny) {
-      if (block) block.remove();
-      return;
-    }
+    safeDOMUpdate(() => {
+      let block = document.getElementById('custPreview');
 
-    if (!block) {
-      block = document.createElement('div');
-      block.id = 'custPreview';
-      block.className = 'cust-preview';
-      mount.innerHTML = '';
-      mount.appendChild(block);
-    }
+      if (!hasAny) {
+        if (block) block.remove();
+        return;
+      }
 
-    const cityState = [data.city, data.state].filter(Boolean).join(', ');
-    const cityStateZip = cityState ? (data.zip ? `${cityState} ${data.zip}` : cityState) : (data.zip || '');
+      if (!block) {
+        block = document.createElement('div');
+        block.id = 'custPreview';
+        block.className = 'cust-preview';
+        // Mount at the top (do NOT clear mount.innerHTML; just insert/replace)
+        mount.prepend(block);
+      }
 
-    const rows = [];
-    const row = (label, value) => {
-      if (!value) return;
-      rows.push(`<div class="kv"><label>${label}</label><strong>${value}</strong></div>`);
-    };
+      const cityState = [data.city, data.state].filter(Boolean).join(', ');
+      const cityStateZip = cityState ? (data.zip ? `${cityState} ${data.zip}` : cityState) : (data.zip || '');
 
-    row('Name', data.name);
-    row('Company', data.company);
-    row('Phone', data.phone);
-    row('Email', data.email);
+      const rows = [];
+      const row = (label, value) => {
+        if (!value) return;
+        rows.push(`<div class="kv"><label>${label}</label><strong>${value}</strong></div>`);
+      };
 
-    const addressParts = [data.addr1, data.addr2, cityStateZip].filter(Boolean);
-    if (addressParts.length) row('Address', addressParts.join('<br>'));
+      row('Name', data.name);
+      row('Company', data.company);
+      row('Phone', data.phone);
+      row('Email', data.email);
 
-    row('Preferred Contact', data.pref);
-    row('Target Start', data.start);
-    row('Notes', data.notes);
+      const addressParts = [data.addr1, data.addr2, cityStateZip].filter(Boolean);
+      if (addressParts.length) row('Address', addressParts.join('<br>'));
 
-    block.innerHTML = `
-      <div class="cust-preview__head">Customer</div>
-      <div class="cust-preview__body">
-        ${rows.join('')}
-      </div>
-    `;
+      row('Preferred Contact', data.pref);
+      row('Target Start', data.start);
+      row('Notes', data.notes);
+
+      block.innerHTML = `
+        <div class="cust-preview__head">Customer</div>
+        <div class="cust-preview__body">
+          ${rows.join('')}
+        </div>
+      `;
+    });
   }
 
-  // Expose a callable so other code can force refresh after it paints
+  // Expose callable for main flow
   window.upsertCustomerPreview = _upsert;
 
-  // Run on submit (immediate + after renderer likely paints)
+  // Rebuild after submit (immediate + small delays)
   form.addEventListener('submit', function () {
     _upsert();
     setTimeout(_upsert, 50);
     setTimeout(_upsert, 200);
   });
 
-  // Observe the entire output pane for re-renders
-  const mo = new MutationObserver(() => _upsert());
-  mo.observe(outputPane, { childList: true, subtree: true });
+  // Observe output pane but debounce and only react to relevant changes
+  observer = new MutationObserver((mutations) => {
+    if (obsBusy) return;
+    // Only react if quotePreview subtree changed
+    const relevant = mutations.some(m => {
+      if (m.type !== 'childList') return false;
+      if (!m.target) return false;
+      // Check if the mutation target IS quotePreview or contains it / is inside it
+      const target = m.target.nodeType === 1 ? m.target : null;
+      if (!target) return false;
+      return target.id === 'quotePreview' || !!target.closest?.('#quotePreview');
+    });
+    if (!relevant) return;
+
+    obsBusy = true;
+    Promise.resolve().then(() => _upsert()).finally(() => { obsBusy = false; });
+  });
+  observer.observe(outputPane, { childList: true, subtree: true });
 })();
