@@ -294,3 +294,20 @@ body.demo #diagnostics { display: none !important; }
 
 /* Optional: tighten the status bar spacing in demo mode */
 body.demo #statusBar { margin-top: 8px; }
+/* Fix logo dot rendering */
+.logo-dot{
+  display: inline-block;      /* <-- key fix */
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  line-height: 12px;
+  border-radius: 999px;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: var(--brand);
+  box-shadow:
+    0 0 0 6px rgba(42,163,255,.18),
+    0 0 18px rgba(42,163,255,.55),
+    0 0 2px rgba(42,163,255,.9) inset;
+}
+
