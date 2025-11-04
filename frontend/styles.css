@@ -53,20 +53,31 @@ html, body {
   gap: 12px;
 }
 
+/* Header brand layout + glowing dot */
+
 .logo-dot {
-  width: 10px; height: 10px; border-radius: 999px; background: var(--brand);
-  box-shadow: 0 0 0 6px rgba(42,163,255,.15);
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--brand);
+  box-shadow:
+    0 0 0 6px rgba(42,163,255,.18),
+    0 0 18px rgba(42,163,255,.55),
+    0 0 2px rgba(42,163,255,.9) inset;
 }
+
 .header__title {
   font-weight: 700;
   letter-spacing: .3px;
 }
+
 .header__sub {
   margin-left: auto;
   font-size: 12px;
   color: var(--muted);
   opacity: .9;
 }
+
 
 /* Layout Shell */
 .container {
@@ -276,3 +287,10 @@ textarea:focus {
   color: var(--muted); font-size: 12px; opacity: .85;
   display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
 }
+
+/* Demo mode: hide dev controls */
+body.demo .env,
+body.demo #diagnostics { display: none !important; }
+
+/* Optional: tighten the status bar spacing in demo mode */
+body.demo #statusBar { margin-top: 8px; }
