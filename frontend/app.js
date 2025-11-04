@@ -1,5 +1,5 @@
-﻿// AI for Trades — app.js v106.10d
-// Stable customer card + estimate flow without touching your layout or stylesheet.
+﻿// AI for Trades — app.js v106.10e
+// Adds Trade + job meta fields to payload, stabilizes UI, and handles empty responses gracefully.
 
 (function () {
   const $ = (s, r = document) => r.querySelector(s);
@@ -7,84 +7,83 @@
   // ---- State ----
   const state = {
     inflight: false,
-    apiUrl: '/estimate', // adjust if you use an absolute backend URL
+    apiUrl: 'https://ai-for-trades-api.onrender.com/estimate', // live backend
   };
 
-  // ---- Customer helpers ----
-  const FIELD_IDS = ['firstName', 'lastName', 'phone', 'email', 'address'];
+  // ---- Field maps ----
+  const CUSTOMER_FIELDS = ['firstName','lastName','phone','email','address','zip'];
+  const JOB_FIELDS = {
+    trade:        '#trade',
+    urgency:      '#urgency',
+    sqft:         '#sqft',
+    rooms:        '#rooms',
+    difficulty:   '#difficulty',
+    description:  '#jobDescription',
+    laborHours:   '#laborHours',
+    laborRate:    '#laborRate',
+    materialsBudget: '#materialsBudget',
+  };
+
+  function val(sel) {
+    const el = typeof sel === 'string' ? $(sel) : sel;
+    if (!el) return '';
+    const v = (el.value ?? el.textContent ?? '').toString().trim();
+    return v;
+  }
 
   function getInput(idOrName) {
     return document.getElementById(idOrName) || document.querySelector(`[name="${idOrName}"]`);
   }
 
+  // ---- Customer preview/card ----
   function readCustomer() {
-    const val = (k) => {
+    const v = (k) => {
       const el = getInput(k);
       return (el?.value ?? el?.textContent ?? '').trim();
     };
     return {
-      firstName: val('firstName'),
-      lastName:  val('lastName'),
-      phone:     val('phone'),
-      email:     val('email'),
-      address:   val('address'),
+      firstName: v('firstName'),
+      lastName:  v('lastName'),
+      phone:     v('phone'),
+      email:     v('email'),
+      address:   v('address'),
+      zip:       v('zip'),
     };
   }
 
   function isEmptyCustomer(c) {
-    return !(c.firstName || c.lastName || c.phone || c.email || c.address);
-  }
-
-  function ensureCustomerCard() {
-    // Card is already in HTML with id="customerCard"
-    return $('#customerCard');
+    return !(c.firstName || c.lastName || c.phone || c.email || c.address || c.zip);
   }
 
   function renderCustomerCard(cust) {
-    const card = ensureCustomerCard();
+    const card = $('#customerCard');
     if (!card) return;
-
-    if (!cust || isEmptyCustomer(cust)) {
-      // hide via HTML 'hidden' attribute (no CSS class required)
-      card.hidden = true;
-      return;
-    }
+    if (!cust || isEmptyCustomer(cust)) { card.hidden = true; return; }
 
     const safe = (v) => (v && v.length ? v : '—');
-    const name = `${cust.firstName ?? ''} ${cust.lastName ?? ''}`.trim() || 'Customer';
+    const fullName = `${cust.firstName ?? ''} ${cust.lastName ?? ''}`.trim() || 'Customer';
 
-    const set = (id, text) => {
-      const el = $('#' + id, card);
-      if (el) el.textContent = text;
-    };
-    set('custName', name);
+    const set = (id, text) => { const el = $('#' + id, card); if (el) el.textContent = text; };
+    set('custName', fullName);
     set('custPhone', safe(cust.phone));
     set('custEmail', safe(cust.email));
-    set('custAddress', safe(cust.address));
+    set('custAddress', safe([cust.address, cust.zip].filter(Boolean).join(', ')));
 
     card.hidden = false;
   }
 
   function bindLiveCustomerPreview() {
-    // Initial render on load
     renderCustomerCard(readCustomer());
-
-    // Live updates on user input
-    FIELD_IDS.forEach((k) => {
+    CUSTOMER_FIELDS.forEach((k) => {
       const el = getInput(k);
       if (!el) return;
       const h = () => renderCustomerCard(readCustomer());
       el.addEventListener('input', h);
       el.addEventListener('change', h);
     });
-
-    // Ensure reset hides the card
     const form = $('#estimateForm');
     if (form) {
-      form.addEventListener('reset', () => {
-        // values clear after 'reset' event; defer read
-        setTimeout(() => renderCustomerCard(readCustomer()), 0);
-      });
+      form.addEventListener('reset', () => setTimeout(() => renderCustomerCard(readCustomer()), 0));
     }
   }
 
@@ -94,18 +93,37 @@
     if (!el) return console.warn('[aft] inlineError container missing');
     el.textContent = msg || 'An error occurred.';
     el.hidden = false;
-    // Auto-hide after 5s (optional)
     setTimeout(() => { if (el) el.hidden = true; }, 5000);
   }
 
-  // ---- Payload gatherer ----
+  // ---- Gather payload ----
   function gatherPayload() {
-    // Collect customer + basic job fields. Extend as needed for your estimator.
     const customer = readCustomer();
     const job = {
-      description: ($('#jobDescription')?.value || '').trim(),
+      trade: val(JOB_FIELDS.trade),
+      urgency: val(JOB_FIELDS.urgency) || 'Normal',
+      sqft: parseNumber(val(JOB_FIELDS.sqft)),
+      rooms: parseNumber(val(JOB_FIELDS.rooms)),
+      difficulty: val(JOB_FIELDS.difficulty) || 'Standard',
+      description: val(JOB_FIELDS.description),
+      labor: {
+        hours: parseNumber(val(JOB_FIELDS.laborHours)),
+        rate:  parseNumber(val(JOB_FIELDS.laborRate)),
+      },
+      materials: {
+        budget: parseNumber(val(JOB_FIELDS.materialsBudget)),
+      },
+      // include a simple derived flag the backend could use
+      rushFeeEligible: ['Rush','Emergency'].includes(val(JOB_FIELDS.urgency)),
     };
-    return { customer, job };
+
+    return { customer, job, client: { appVersion: 'v106.10e' } };
+  }
+
+  function parseNumber(str) {
+    if (!str) return null;
+    const n = Number(str);
+    return Number.isFinite(n) ? n : null;
   }
 
   // ---- Estimate flow ----
@@ -140,21 +158,25 @@
 
       if (!res.ok) {
         showInlineError(`Estimate failed (${res.status}).`);
+        mirrorToOutput({ error: `HTTP ${res.status}`, payload, server: data });
         return;
       }
 
-      // If API returns enriched customer, sync the card
+      // If backend returns enriched customer, keep card in sync
       if (data && data.customer) {
         renderCustomerCard(data.customer);
       }
 
-      const out = $('#estimateOutput');
-      if (out) {
-        out.value = JSON.stringify(data, null, 2);
+      if (data == null || (typeof data === 'object' && Object.keys(data).length === 0)) {
+        // Graceful handling for empty responses: show what we sent
+        mirrorToOutput({ note: 'No estimate returned by server.', payload, server: data });
+      } else {
+        mirrorToOutput(data);
       }
     } catch (err) {
       console.error('network error:', err);
       showInlineError('Network error while requesting estimate.');
+      mirrorToOutput({ error: 'Network error', detail: String(err), payload });
     } finally {
       const dt = Math.round(performance.now() - t0);
       console.log('durationMs:', dt);
@@ -164,6 +186,11 @@
     }
   }
 
+  function mirrorToOutput(obj) {
+    const out = $('#estimateOutput');
+    if (out) out.value = JSON.stringify(obj, null, 2);
+  }
+
   function bindEstimateActions() {
     const btn  = $('#estimateBtn');
     const form = $('#estimateForm');
@@ -171,7 +198,7 @@
     if (form) form.addEventListener('submit', (e) => { e.preventDefault(); doEstimate(); });
   }
 
-  // ---- Safe init ----
+  // ---- Init ----
   function init() {
     bindLiveCustomerPreview();
     bindEstimateActions();
@@ -183,6 +210,6 @@
     init();
   }
 
-  // Optional: expose for quick debugging
-  window.__aft = { readCustomer, renderCustomerCard, doEstimate };
+  // Debug
+  window.__aft = { gatherPayload, doEstimate };
 })();
