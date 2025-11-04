@@ -1,6 +1,6 @@
 ﻿// ============================================================
 // AI for Trades - Job Estimator (Frontend Logic)
-// v106.8 - Stable with Customer Preview Resilience
+// v106.9 - Customer Preview resilient + explicitly refreshed after render
 // ============================================================
 
 // DOM READY UTIL ------------------------------------------------------------
@@ -19,13 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Helper: Set status bar
   function setStatus(state, message) {
-    statusText.textContent = message;
-    statusDot.className = `status-dot status-${state}`;
+    if (statusText) statusText.textContent = message;
+    if (statusDot) statusDot.className = `status-dot status-${state}`;
   }
 
   // Helper: Compose endpoint
   function getEndpoint() {
-    return `${backendBaseInput.value}${endpointPathInput.value}`;
+    const base = backendBaseInput ? backendBaseInput.value : '';
+    const path = endpointPathInput ? endpointPathInput.value : '';
+    return `${base}${path}`;
   }
 
   // Ping backend ------------------------------------------------------------
@@ -34,7 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
     pingBtn.addEventListener('click', async () => {
       setStatus('pending', 'Pinging backend...');
       try {
-        const res = await fetch(getEndpoint().replace('/estimate', '/'), { method: 'GET' });
+        const url = getEndpoint().replace('/estimate', '/');
+        const res = await fetch(url, { method: 'GET' });
         if (!res.ok) throw new Error(`Status ${res.status}`);
         setStatus('ok', 'Backend reachable!');
       } catch (err) {
@@ -63,24 +66,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await res.json();
 
         // Update JSON preview
-        jsonOutput.textContent = JSON.stringify(result, null, 2);
+        if (jsonOutput) jsonOutput.textContent = JSON.stringify(result, null, 2);
 
         // Update text preview
-        quotePreview.innerHTML = `<div class="summary-block">
-          <p><strong>Estimate Summary</strong><br>
-          Trade: ${data.tradeType || '-'}<br>
-          Title: ${data.jobTitle || '-'}<br>
-          Labor: ${data.laborHours || 0}h @ $${data.laborRate || 0}/h<br>
-          Materials: ${data.materials || '-'}<br>
-          Location: ${data.location || '-'}<br>
-          <br>
-          <strong>Total:</strong> ${result.total_formatted || '$0.00'}</p>
-        </div>`;
+        if (quotePreview) {
+          quotePreview.innerHTML = `<div class="summary-block">
+            <p><strong>Estimate Summary</strong><br>
+            Trade: ${data.tradeType || '-'}<br>
+            Title: ${data.jobTitle || '-'}<br>
+            Labor: ${data.laborHours || 0}h @ $${data.laborRate || 0}/h<br>
+            Materials: ${data.materials || '-'}<br>
+            Location: ${data.location || '-'}<br>
+            <br>
+            <strong>Total:</strong> ${result.total_formatted || '$0.00'}</p>
+          </div>`;
+        }
+
+        // Explicitly refresh the customer preview AFTER we render the summary
+        if (window.upsertCustomerPreview) {
+          window.upsertCustomerPreview();
+          setTimeout(window.upsertCustomerPreview, 50);
+          setTimeout(window.upsertCustomerPreview, 200);
+        }
 
         setStatus('ok', 'Estimate generated.');
       } catch (err) {
         setStatus('error', 'Failed to generate estimate.');
-        quotePreview.innerHTML = `<p class='error'>${err.message}</p>`;
+        if (quotePreview) quotePreview.innerHTML = `<p class='error'>${err.message}</p>`;
       }
     });
   }
@@ -89,11 +101,15 @@ document.addEventListener('DOMContentLoaded', () => {
   if (resetFormBtn) {
     resetFormBtn.addEventListener('click', () => {
       estimateForm.reset();
-      quotePreview.innerHTML = `<div class="placeholder">
-        <p>Fill in the form and click <strong>Generate Estimate</strong> to preview the quote.</p>
-      </div>`;
-      jsonOutput.hidden = true;
+      if (quotePreview) {
+        quotePreview.innerHTML = `<div class="placeholder">
+          <p>Fill in the form and click <strong>Generate Estimate</strong> to preview the quote.</p>
+        </div>`;
+      }
+      if (jsonOutput) jsonOutput.hidden = true;
       setStatus('idle', 'Ready.');
+      // Clear customer preview on reset
+      if (window.upsertCustomerPreview) window.upsertCustomerPreview();
     });
   }
 
@@ -103,8 +119,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const showingSummary = toggleViewBtn.dataset.view === 'summary';
       toggleViewBtn.dataset.view = showingSummary ? 'json' : 'summary';
       toggleViewBtn.textContent = showingSummary ? 'JSON' : 'Summary';
-      quotePreview.hidden = !showingSummary;
-      jsonOutput.hidden = showingSummary;
+      if (quotePreview) quotePreview.hidden = !showingSummary;
+      if (jsonOutput) jsonOutput.hidden = showingSummary;
     });
   }
 
@@ -130,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ============================================================================
 // Customer block → Estimate Preview (resilient to re-renders)
+// Exposes window.upsertCustomerPreview so main render can call it explicitly
 // ============================================================================
 (function () {
   const form = document.getElementById('estimateForm');
@@ -156,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return el && typeof el.value === 'string' ? el.value.trim() : '';
   }
 
-  function upsertCustomerPreview() {
+  function _upsert() {
     const mount = ensureMount();
     const previewRoot = getPreviewRoot();
     if (!mount || !previewRoot) return;
@@ -221,14 +238,17 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
+  // Expose a callable so other code can force refresh after it paints
+  window.upsertCustomerPreview = _upsert;
+
+  // Run on submit (immediate + after renderer likely paints)
   form.addEventListener('submit', function () {
-    upsertCustomerPreview();
-    setTimeout(upsertCustomerPreview, 50);
-    setTimeout(upsertCustomerPreview, 200);
+    _upsert();
+    setTimeout(_upsert, 50);
+    setTimeout(_upsert, 200);
   });
 
-  const mo = new MutationObserver(() => {
-    upsertCustomerPreview();
-  });
+  // Observe the entire output pane for re-renders
+  const mo = new MutationObserver(() => _upsert());
   mo.observe(outputPane, { childList: true, subtree: true });
 })();
