@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta http-equiv="x-ua-compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
   <title>AI for Trades — Job Estimator</title>
   <meta name="description" content="Fast, transparent job estimates for trades using AI." />
   <link rel="icon" href="/favicon.ico" />
@@ -12,21 +11,22 @@
   <style>
     :root{
       --bg:#0b0d12; --card:#11151d; --muted:#8ea2b7; --text:#e9eef5;
-      --line:#1d2330; --accent:#4ba3ff; --accent-2:#76d5a9; --danger:#ff6b6b;
+      --line:#1d2330; --accent:#4ba3ff; --ok:#76d5a9; --warn:#ffb86b; --err:#ff6b6b;
     }
     *{box-sizing:border-box} html,body{height:100%}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#0a0f17 0%, #0c1119 100%);color:var(--text)}
-    header{display:flex;align-items:center;gap:.75rem;padding:20px 24px;border-bottom:1px solid var(--line);background:rgba(17,21,29,.7);backdrop-filter:blur(6px);position:sticky;top:0;z-index:10}
-    header h1{margin:0;font-size:1.125rem;font-weight:650;letter-spacing:.2px}
-    header .badge{margin-left:auto;font-size:.8rem;color:var(--muted)}
-    .logo{width:28px;height:28px;display:inline-block;border-radius:8px;background:radial-gradient(100% 100% at 50% 0%, var(--accent) 0%, #1b73d6 60%, #0d2344 100%);position:relative;overflow:hidden}
-    .logo svg{position:absolute;inset:0;width:100%;height:100%}
+    header{display:flex;align-items:center;gap:.75rem;padding:16px 20px;border-bottom:1px solid var(--line);background:rgba(17,21,29,.7);backdrop-filter:blur(6px);position:sticky;top:0;z-index:10}
+    header h1{margin:0;font-size:1.08rem;font-weight:650;letter-spacing:.2px}
+    .badge{margin-left:auto;font-size:.8rem;color:var(--muted)}
+    .dot{width:10px;height:10px;border-radius:50%;background:#4ba3ff;box-shadow:0 0 0 2px rgba(75,163,255,.15);margin-left:8px}
+    .dot.ok{background:var(--ok)} .dot.err{background:var(--err)} .dot.warn{background:var(--warn)}
 
-    #app{display:grid;gap:20px;grid-template-columns:1.1fr 1fr;padding:20px 24px;max-width:1200px;margin:0 auto}
+    #app{display:grid;gap:20px;grid-template-columns:1.1fr 1fr;padding:20px;max-width:1200px;margin:0 auto}
     @media (max-width:980px){#app{grid-template-columns:1fr}}
 
     .pane{background:linear-gradient(180deg,#0f1420 0%, #0e1320 100%);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.02)}
     .pane h2{margin:0 0 12px;font-size:1rem;color:#d9e5f5;font-weight:600}
+
     .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
     .row + .row, .row-3 + .row, .row + .row-3{margin-top:12px}
@@ -52,21 +52,17 @@
     #inlineError{margin-top:12px;border:1px solid rgba(255,107,107,.35);background:rgba(255,107,107,.12);color:#ffd3d3;border-radius:10px;padding:10px 12px;font-size:.9rem}
     #inlineError[hidden]{display:none !important}
 
-    #estimateOutput{min-height:420px;background:#0b1320;border:1px solid #21304a;border-radius:12px;padding:12px;width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92rem;color:#d9e7ff;white-space:pre;overflow:auto}
+    #resultHeader{display:flex;align-items:center;justify-content:space-between;margin:0 0 10px}
+    #custNameHeader{font-weight:600;color:#d9e5f5}
 
-    footer{max-width:1200px;margin:14px auto 40px;color:var(--muted);padding:0 24px;font-size:.85rem}
+    #estimateOutput{min-height:420px;background:#0b1320;border:1px solid #21304a;border-radius:12px;padding:12px;width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92rem;color:#d9e7ff;white-space:pre;overflow:auto}
   </style>
 </head>
 <body>
   <header>
-    <span class="logo" aria-hidden="true">
-      <svg viewBox="0 0 100 100" role="img" aria-label="AI for Trades">
-        <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7ed0ff"/><stop offset="1" stop-color="#4ba3ff"/></linearGradient></defs>
-        <rect x="0" y="0" width="100" height="100" fill="url(#g1)"/><path d="M18 62 L40 30 L60 55 L80 38 L82 62 L62 72 L42 52 L28 71 Z" fill="rgba(8,15,30,.55)" />
-      </svg>
-    </span>
     <h1>AI for Trades — Job Estimator</h1>
-    <span class="badge">v106.6d</span>
+    <span class="badge">v106.12</span>
+    <span id="statusDot" class="dot" title="Backend status"></span>
   </header>
 
   <main id="app">
@@ -170,6 +166,7 @@
 
         <div class="actions">
           <button id="estimateBtn" type="submit">Generate Estimate</button>
+          <button id="pdfBtn" type="button" class="btn-secondary">Export PDF</button>
           <button type="reset" class="btn-secondary">Reset</button>
         </div>
       </form>
@@ -188,15 +185,20 @@
 
     <!-- Right: results -->
     <section id="right-pane" class="pane">
-      <h2>Estimate Results</h2>
+      <div id="resultHeader">
+        <div id="custNameHeader">Customer: —</div>
+        <div>
+          <small id="resultMeta" style="color:#8ea2b7"></small>
+        </div>
+      </div>
       <textarea id="estimateOutput" readonly placeholder="Estimate results will appear here..."></textarea>
     </section>
   </main>
 
   <footer>
-    <p>AI for Trades Prototype — v106.6d • JS: <code>/app.js?v=106.10e</code></p>
+    <p>AI for Trades Prototype — v106.12 • JS: <code>/app.js?v=106.12</code></p>
   </footer>
 
-  <script src="/app.js?v=106.10e"></script>
+  <script src="/app.js?v=106.12"></script>
 </body>
 </html>
